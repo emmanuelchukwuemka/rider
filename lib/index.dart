@@ -1,0 +1,98 @@
+// Export pages
+export '/splash/page1_splash_screen/page1_splash_screen_widget.dart'
+    show Page1SplashScreenWidget;
+export '/passengersveiw/page1_phone_login/page1_phone_login_widget.dart'
+    show Page1PhoneLoginWidget;
+export '/passengersveiw/passenger_signup/passenger_signup_widget.dart'
+    show PassengerSignupWidget;
+export '/passengersveiw/page4_email_verfication/page4_email_verfication_widget.dart'
+    show Page4EmailVerficationWidget;
+export '/passengersveiw/page5_enable_location/page5_enable_location_widget.dart'
+    show Page5EnableLocationWidget;
+export '/passengersveiw/page6_set_destination/page6_set_destination_widget.dart'
+    show Page6SetDestinationWidget;
+export '/passengersveiw/page7_schedule_ride/page7_schedule_ride_widget.dart'
+    show Page7ScheduleRideWidget;
+export '/passengersveiw/page12_trip_in_progress/page12_trip_in_progress_widget.dart'
+    show Page12TripInProgressWidget;
+export '/passengersveiw/page14_rating_screen/page14_rating_screen_widget.dart'
+    show Page14RatingScreenWidget;
+export '/passengersveiw/page15_passenger_profile/page15_passenger_profile_widget.dart'
+    show Page15PassengerProfileWidget;
+export '/passengersveiw/forgot_password/forgot_password_widget.dart'
+    show ForgotPasswordWidget;
+export '/passengersveiw/reset_password/reset_password_widget.dart'
+    show ResetPasswordWidget;
+export '/passengersveiw/page10_searchingfor_driverr/page10_searchingfor_driverr_widget.dart'
+    show Page10SearchingforDriverrWidget;
+export '/passengersveiw/passengers_dashboardnew/passengers_dashboardnew_widget.dart'
+    show PassengersDashboardnewWidget;
+export '/new_screen5/new_screen5_widget.dart' show NewScreen5Widget;
+export '/new_screen72/new_screen72_widget.dart' show NewScreen72Widget;
+export '/confirm_phone_number_page/confirm_phone_number_page_widget.dart'
+    show ConfirmPhoneNumberPageWidget;
+export '/components/p_role_selection/p_role_selection_widget.dart'
+    show PRoleSelectionWidget;
+export '/components/p_phone_login/p_phone_login_widget.dart'
+    show PPhoneLoginWidget;
+export '/pages/p_set_destination/p_set_destination_widget.dart'
+    show PSetDestinationWidget;
+export '/components/p_schedule_ride/p_schedule_ride_widget.dart'
+    show PScheduleRideWidget;
+export '/pages/p_confirm_ride/p_confirm_ride_widget.dart'
+    show PConfirmRideWidget;
+export '/p_searching_driver/p_searching_driver_widget.dart'
+    show PSearchingDriverWidget;
+export '/components/p_driver_assigned/p_driver_assigned_widget.dart'
+    show PDriverAssignedWidget;
+export '/components/p_trip_in_progress/p_trip_in_progress_widget.dart'
+    show PTripInProgressWidget;
+export '/components/p_rating/p_rating_widget.dart' show PRatingWidget;
+export '/components/p_profile/p_profile_widget.dart' show PProfileWidget;
+export '/components/d_welcome/d_welcome_widget.dart' show DWelcomeWidget;
+export '/driver/d_scheduled_rides/d_scheduled_rides_widget.dart'
+    show DScheduledRidesWidget;
+export '/driver/incoming_riderequest7/incoming_riderequest7_widget.dart'
+    show IncomingRiderequest7Widget;
+export '/components/d_earnings/d_earnings_widget.dart' show DEarningsWidget;
+export '/driver/driver_login002/driver_login002_widget.dart'
+    show DriverLogin002Widget;
+export '/driver/driver_forgot_password004/driver_forgot_password004_widget.dart'
+    show DriverForgotPassword004Widget;
+export '/driver/driver_reset_password005/driver_reset_password005_widget.dart'
+    show DriverResetPassword005Widget;
+export '/driver/driver_verify_code003/driver_verify_code003_widget.dart'
+    show DriverVerifyCode003Widget;
+export '/driver/terms_commission2/terms_commission2_widget.dart'
+    show TermsCommission2Widget;
+export '/driver/application_submitted3/application_submitted3_widget.dart'
+    show ApplicationSubmitted3Widget;
+export '/driver/application_under_review4/application_under_review4_widget.dart'
+    show ApplicationUnderReview4Widget;
+export '/driver/approval_successful5/approval_successful5_widget.dart'
+    show ApprovalSuccessful5Widget;
+export '/driver/driver_dashboard6/driver_dashboard6_widget.dart'
+    show DriverDashboard6Widget;
+export '/driver/navigate_to_passenger8/navigate_to_passenger8_widget.dart'
+    show NavigateToPassenger8Widget;
+export '/driver/arrived_at_pickup9/arrived_at_pickup9_widget.dart'
+    show ArrivedAtPickup9Widget;
+export '/driver/trip_in_progress10/trip_in_progress10_widget.dart'
+    show TripInProgress10Widget;
+export '/driver/trip_summary11/trip_summary11_widget.dart'
+    show TripSummary11Widget;
+export '/driver/driver_document_upload1/driver_document_upload1_widget.dart'
+    show DriverDocumentUpload1Widget;
+export '/driver/splash_screen/splash_screen_widget.dart'
+    show SplashScreenWidget;
+export '/account_page/account_page_widget.dart' show AccountPageWidget;
+export '/driver/driver_signup/driver_signup_widget.dart'
+    show DriverSignupWidget;
+export '/driver/d_ride_history/d_ride_history_widget.dart'
+    show DRideHistoryWidget;
+export '/driver/d_payment/d_payment_widget.dart'
+    show DPaymentWidget;
+export '/driver/d_settings/d_settings_widget.dart'
+    show DSettingsWidget;
+export '/driver/d_support/d_support_widget.dart'
+    show DSupportWidget;

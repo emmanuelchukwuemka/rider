@@ -1,0 +1,18 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "ride",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "requested_at",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "time",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ]
+}
