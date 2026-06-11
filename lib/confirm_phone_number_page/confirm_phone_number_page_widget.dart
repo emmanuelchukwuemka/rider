@@ -45,6 +45,18 @@ class _ConfirmPhoneNumberPageWidgetState
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       _model.timerController.onStartTimer();
+      if (widget.email.isNotEmpty) {
+        final result = await requestLoginOtp(widget.email);
+        if (mounted && result['debug_otp'] != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Your OTP code: ${result['debug_otp']}'),
+              duration: Duration(seconds: 30),
+              backgroundColor: FlutterFlowTheme.of(context).primary,
+            ),
+          );
+        }
+      }
     });
 
     _model.pinCodeFocusNode ??= FocusNode();

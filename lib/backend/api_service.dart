@@ -61,25 +61,26 @@ Future<bool> rateRide(String rideId, int rating) async {
   return false;
 }
 
-Future<String> requestLoginOtp(String emailOrPhone) async {
+Future<Map<String, dynamic>> requestLoginOtp(String emailOrPhone) async {
   try {
     bool isEmail = emailOrPhone.contains('@');
-    final Map<String, dynamic> bodyData = isEmail 
-        ? {'email': emailOrPhone} 
+    final Map<String, dynamic> bodyData = isEmail
+        ? {'email': emailOrPhone}
         : {'phone_number': emailOrPhone};
-        
+
     final response = await http.post(
       Uri.parse('$baseUrl/api/auth/request-otp'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(bodyData),
     );
     if (response.statusCode == 200) {
-      return 'success';
+      final data = json.decode(response.body);
+      return {'success': true, 'debug_otp': data['debug_otp']};
     }
-    return 'error';
+    return {'success': false};
   } catch (e) {
     print('Error requesting OTP: $e');
-    return 'error';
+    return {'success': false};
   }
 }
 
