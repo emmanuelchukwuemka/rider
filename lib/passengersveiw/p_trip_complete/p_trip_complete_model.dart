@@ -1,8 +1,8 @@
 import '/flutter_flow/flutter_flow_util.dart';
-import 'p_phone_login_widget.dart' show PPhoneLoginWidget;
+import 'p_trip_complete_widget.dart' show PTripCompleteWidget;
 import 'package:flutter/material.dart';
 
-class PPhoneLoginModel extends FlutterFlowModel<PPhoneLoginWidget> {
+class PTripCompleteModel extends FlutterFlowModel<PTripCompleteWidget> {
   @override
   void initState(BuildContext context) {}
 

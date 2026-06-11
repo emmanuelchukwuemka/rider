@@ -1,20 +1,22 @@
 import '/auth/custom_auth/auth_util.dart';
+import '/backend/api_service.dart';
 import '/backend/backend.dart';
 import '/backend/schema/enums/enums.dart';
 import '/flutter_flow/flutter_flow_calendar.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
-import '/flutter_flow/flutter_flow_place_picker.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/flutter_flow/place.dart';
-import 'dart:io';
+import 'dart:async';
 import 'dart:ui';
 import '/backend/schema/util/mock_firestore.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_webservice/places.dart';
 import 'package:provider/provider.dart';
 import 'page7_schedule_ride_model.dart';
 export 'page7_schedule_ride_model.dart';
@@ -23,9 +25,11 @@ class Page7ScheduleRideWidget extends StatefulWidget {
   const Page7ScheduleRideWidget({
     super.key,
     this.ride,
+    this.mapDropoff,
   });
 
-  final RideRecord? ride;
+  final DocumentReference? ride;
+  final LatLng? mapDropoff;
 
   static String routeName = 'Page7ScheduleRide';
   static String routePath = '/page7ScheduleRide';
@@ -39,20 +43,168 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
   late Page7ScheduleRideModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  LatLng? currentUserLocationValue;
+
+  static const String _placesApiKey = 'AIzaSyAMK0gm6FqImxY1oLDQ72UcTuZzybFl7Lw';
+
+  String get _apiKey => _placesApiKey;
+
+  late GoogleMapsPlaces _places;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => Page7ScheduleRideModel());
+    _places = GoogleMapsPlaces(apiKey: _apiKey);
+
+    getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0), cached: false).then((loc) {
+      if (!mounted) return;
+      safeSetState(() {
+        currentUserLocationValue = loc;
+        _model.placePickerValue1 = FFPlace(
+          latLng: loc,
+          name: 'Current Location',
+          address: 'Current Location',
+          city: '',
+          state: '',
+          country: '',
+          zipCode: '',
+        );
+      });
+    });
+
+    if (widget.mapDropoff != null) {
+      _model.placePickerValue2 = FFPlace(
+        latLng: widget.mapDropoff!,
+        name: 'Selected on Map',
+        address: 'Selected on Map',
+      );
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
   }
 
   @override
   void dispose() {
+    _places.dispose();
     _model.dispose();
-
     super.dispose();
+  }
+
+  Future<void> _openLocationSearch(bool isPickup) async {
+    final theme = FlutterFlowTheme.of(context);
+    final TextEditingController searchController = TextEditingController();
+    List<Prediction> suggestions = [];
+    bool searching = false;
+    Timer? debounce;
+
+    final selected = await showModalBottomSheet<FFPlace>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setModalState) {
+          void onChanged(String query) {
+            debounce?.cancel();
+            if (query.isEmpty) {
+              setModalState(() => suggestions = []);
+              return;
+            }
+            debounce = Timer(const Duration(milliseconds: 350), () async {
+              setModalState(() => searching = true);
+              final result = await _places.autocomplete(query, language: 'en');
+              setModalState(() {
+                suggestions = result.isOkay ? result.predictions : [];
+                searching = false;
+              });
+            });
+          }
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder: (_, scrollController) => Container(
+              decoration: BoxDecoration(
+                color: theme.primaryBackground,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20.0)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8.0),
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: theme.alternate, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 16.0),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      onChanged: onChanged,
+                      style: theme.bodyMedium.override(font: GoogleFonts.inter(), color: theme.primaryText),
+                      decoration: InputDecoration(
+                        hintText: isPickup ? 'Pickup location' : 'Destination',
+                        hintStyle: theme.bodyMedium.override(font: GoogleFonts.inter(), color: theme.secondaryText),
+                        prefixIcon: Icon(Icons.search, color: theme.secondaryText),
+                        filled: true,
+                        fillColor: theme.secondaryBackground,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8.0),
+                  Expanded(
+                    child: searching
+                        ? const Center(child: CircularProgressIndicator())
+                        : suggestions.isEmpty
+                            ? Center(child: Text(searchController.text.isEmpty ? 'Start typing to search' : 'No results', style: theme.bodyMedium.override(font: GoogleFonts.inter(), color: theme.secondaryText)))
+                            : ListView.separated(
+                                controller: scrollController,
+                                itemCount: suggestions.length,
+                                separatorBuilder: (_, __) => Divider(height: 1, color: theme.alternate),
+                                itemBuilder: (_, i) {
+                                  final p = suggestions[i];
+                                  return ListTile(
+                                    leading: Icon(Icons.location_on_outlined, color: theme.secondaryText),
+                                    title: Text(p.structuredFormatting?.mainText ?? p.description ?? '', style: theme.bodyMedium.override(font: GoogleFonts.inter(fontWeight: FontWeight.w600), color: theme.primaryText), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    subtitle: Text(p.structuredFormatting?.secondaryText ?? '', style: theme.bodySmall.override(font: GoogleFonts.inter(), color: theme.secondaryText), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    onTap: () async {
+                                      if (p.placeId == null) return;
+                                      final detail = await _places.getDetailsByPlaceId(p.placeId!);
+                                      final loc = detail.result.geometry?.location;
+                                      final place = FFPlace(
+                                        latLng: LatLng(loc?.lat ?? 0, loc?.lng ?? 0),
+                                        name: detail.result.name,
+                                        address: detail.result.formattedAddress ?? '',
+                                        city: '',
+                                        state: '',
+                                        country: '',
+                                        zipCode: '',
+                                      );
+                                      Navigator.pop(ctx, place);
+                                    },
+                                  );
+                                },
+                              ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        });
+      },
+    );
+
+    debounce?.cancel();
+    if (selected != null && mounted) {
+      safeSetState(() {
+        if (isPickup) {
+          _model.placePickerValue1 = selected;
+        } else {
+          _model.placePickerValue2 = selected;
+        }
+      });
+    }
   }
 
   @override
@@ -175,151 +327,63 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
                             mainAxisAlignment: MainAxisAlignment.start,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Expanded(
+                              // Pickup location field
+                              GestureDetector(
+                                onTap: () => _openLocationSearch(true),
                                 child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      Icons.my_location_rounded,
-                                      color:
-                                          FlutterFlowTheme.of(context).primary,
-                                      size: 20.0,
-                                    ),
-                                    Align(
-                                      alignment: AlignmentDirectional(0.0, 0.0),
-                                      child: FlutterFlowPlacePicker(
-                                        iOSGoogleMapsApiKey:
-                                            'AIzaSyBZ3-IhKGop8rGE1Fg6h2fd7fkc58PDx8s',
-                                        androidGoogleMapsApiKey:
-                                            'AIzaSyBxfvdzTRzp_I7ce4KOg7ZX8ZcJntgUbhM',
-                                        webGoogleMapsApiKey:
-                                            'AIzaSyDrHk57l3nhS-ZGz7emmpcgtzCWkLTiXHg',
-                                        onSelect: (place) async {
-                                          safeSetState(() =>
-                                              _model.placePickerValue1 = place);
-                                        },
-                                        defaultText: 'Select Location',
-                                        icon: Icon(
-                                          Icons.place,
-                                          color:
-                                              FlutterFlowTheme.of(context).info,
-                                          size: 16.0,
+                                    Icon(Icons.my_location_rounded, color: FlutterFlowTheme.of(context).primary, size: 20.0),
+                                    const SizedBox(width: 12.0),
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
+                                        decoration: BoxDecoration(
+                                          color: FlutterFlowTheme.of(context).primaryBackground,
+                                          borderRadius: BorderRadius.circular(8.0),
+                                          border: Border.all(color: FlutterFlowTheme.of(context).alternate),
                                         ),
-                                        buttonOptions: FFButtonOptions(
-                                          width: 200.0,
-                                          height: 40.0,
-                                          color: FlutterFlowTheme.of(context)
-                                              .primary,
-                                          textStyle: FlutterFlowTheme.of(
-                                                  context)
-                                              .titleSmall
-                                              .override(
-                                                font: GoogleFonts.interTight(
-                                                  fontWeight:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .titleSmall
-                                                          .fontWeight,
-                                                  fontStyle:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .titleSmall
-                                                          .fontStyle,
-                                                ),
-                                                color:
-                                                    FlutterFlowTheme.of(context)
-                                                        .info,
-                                                letterSpacing: 0.0,
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .titleSmall
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .titleSmall
-                                                        .fontStyle,
-                                              ),
-                                          elevation: 0.0,
-                                          borderSide: BorderSide(
-                                            color: Colors.transparent,
-                                            width: 1.0,
+                                        child: Text(
+                                          _model.placePickerValue1.name.isNotEmpty ? _model.placePickerValue1.name : 'Pickup Location',
+                                          style: FlutterFlowTheme.of(context).bodyMedium.override(
+                                            font: GoogleFonts.inter(),
+                                            color: _model.placePickerValue1.name.isNotEmpty ? FlutterFlowTheme.of(context).primaryText : FlutterFlowTheme.of(context).secondaryText,
                                           ),
-                                          borderRadius:
-                                              BorderRadius.circular(8.0),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ),
-                                  ].divide(SizedBox(width: 16.0)),
+                                  ],
                                 ),
                               ),
-                              Row(
-                                mainAxisSize: MainAxisSize.max,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.location_on_rounded,
-                                    color: FlutterFlowTheme.of(context).error,
-                                    size: 20.0,
-                                  ),
-                                  FlutterFlowPlacePicker(
-                                    iOSGoogleMapsApiKey:
-                                        'AIzaSyBZ3-IhKGop8rGE1Fg6h2fd7fkc58PDx8s',
-                                    androidGoogleMapsApiKey:
-                                        'AIzaSyBxfvdzTRzp_I7ce4KOg7ZX8ZcJntgUbhM',
-                                    webGoogleMapsApiKey:
-                                        'AIzaSyDrHk57l3nhS-ZGz7emmpcgtzCWkLTiXHg',
-                                    onSelect: (place) async {
-                                      safeSetState(() =>
-                                          _model.placePickerValue2 = place);
-                                    },
-                                    defaultText: 'Select Location',
-                                    icon: Icon(
-                                      Icons.place,
-                                      color: FlutterFlowTheme.of(context).info,
-                                      size: 16.0,
-                                    ),
-                                    buttonOptions: FFButtonOptions(
-                                      width: 200.0,
-                                      height: 40.0,
-                                      color:
-                                          FlutterFlowTheme.of(context).primary,
-                                      textStyle: FlutterFlowTheme.of(context)
-                                          .titleSmall
-                                          .override(
-                                            font: GoogleFonts.interTight(
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .titleSmall
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .titleSmall
-                                                      .fontStyle,
-                                            ),
-                                            color: FlutterFlowTheme.of(context)
-                                                .info,
-                                            letterSpacing: 0.0,
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .titleSmall
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .titleSmall
-                                                    .fontStyle,
+                              // Dropoff location field
+                              GestureDetector(
+                                onTap: () => _openLocationSearch(false),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.location_on_rounded, color: FlutterFlowTheme.of(context).error, size: 20.0),
+                                    const SizedBox(width: 12.0),
+                                    Expanded(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
+                                        decoration: BoxDecoration(
+                                          color: FlutterFlowTheme.of(context).primaryBackground,
+                                          borderRadius: BorderRadius.circular(8.0),
+                                          border: Border.all(color: FlutterFlowTheme.of(context).alternate),
+                                        ),
+                                        child: Text(
+                                          _model.placePickerValue2.name.isNotEmpty ? _model.placePickerValue2.name : 'Destination',
+                                          style: FlutterFlowTheme.of(context).bodyMedium.override(
+                                            font: GoogleFonts.inter(),
+                                            color: _model.placePickerValue2.name.isNotEmpty ? FlutterFlowTheme.of(context).primaryText : FlutterFlowTheme.of(context).secondaryText,
                                           ),
-                                      elevation: 0.0,
-                                      borderSide: BorderSide(
-                                        color: Colors.transparent,
-                                        width: 1.0,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                      borderRadius: BorderRadius.circular(8.0),
                                     ),
-                                  ),
-                                ].divide(SizedBox(width: 16.0)),
+                                  ],
+                                ),
                               ),
                             ].divide(SizedBox(height: 16.0)),
                           ),
@@ -659,17 +723,40 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
                         ),
                       ),
                     ),
-                    FFButtonWidget(
-                      onPressed: () async {
-                        await widget!.ride!.reference
-                            .update(createRideRecordData(
-                          status: RideStatus.in_progress,
-                          passengerRef: currentUserReference,
-                          requestedAt: _model.datePicked,
-                          paymentMethod: PaymentMethod.Cash,
-                          rideType: Ridetype.car,
-                        ));
-                      },
+                      FFButtonWidget(
+                        onPressed: () async {
+                          if (_model.datePicked == null || _model.placePickerValue1?.latLng == null || _model.placePickerValue2?.latLng == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Please select pickup, dropoff and time')),
+                            );
+                            return;
+                          }
+                          
+                          final rideData = {
+                            'passenger_ref': currentUserUid,
+                            'status': 'scheduled',
+                            'payment_method': 'Cash',
+                            'ride_type': 'car',
+                            'requested_at': _model.datePicked?.toIso8601String(),
+                            'pickupLat': _model.placePickerValue1?.latLng?.latitude,
+                            'pickupLng': _model.placePickerValue1?.latLng?.longitude,
+                            'dropoffLat': _model.placePickerValue2?.latLng?.latitude,
+                            'dropoffLng': _model.placePickerValue2?.latLng?.longitude,
+                          };
+                          
+                          final response = await requestRide(rideData);
+                          
+                          if (response != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Ride Scheduled Successfully!')),
+                            );
+                            Navigator.pop(context);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to schedule ride. Please try again.')),
+                            );
+                          }
+                        },
                       text: 'Schedule Ride',
                       options: FFButtonOptions(
                         height: 50.0,

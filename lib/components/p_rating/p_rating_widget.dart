@@ -3,6 +3,7 @@ import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/index.dart';
 import '/pages/button/button_widget.dart';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -625,34 +626,44 @@ class _PRatingWidgetState extends State<PRatingWidget> {
                         mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          wrapWithModel(
-                            model: _model.buttonModel1,
-                            updateCallback: () => safeSetState(() {}),
-                            child: ButtonWidget(
-                              content: 'Submit Rating',
-                              iconPresent: false,
-                              iconEndPresent: false,
-                              color: FlutterFlowTheme.of(context).secondaryText,
-                              variant: 'primary',
-                              size: 'large',
-                              fullWidth: true,
-                              loading: false,
-                              disabled: false,
+                          GestureDetector(
+                            onTap: () => context.goNamed(
+                                PassengersDashboardnewWidget.routeName),
+                            child: wrapWithModel(
+                              model: _model.buttonModel1,
+                              updateCallback: () => safeSetState(() {}),
+                              child: ButtonWidget(
+                                content: 'Submit Rating',
+                                iconPresent: false,
+                                iconEndPresent: false,
+                                color:
+                                    FlutterFlowTheme.of(context).secondaryText,
+                                variant: 'primary',
+                                size: 'large',
+                                fullWidth: true,
+                                loading: false,
+                                disabled: false,
+                              ),
                             ),
                           ),
-                          wrapWithModel(
-                            model: _model.buttonModel2,
-                            updateCallback: () => safeSetState(() {}),
-                            child: ButtonWidget(
-                              content: 'Skip',
-                              iconPresent: false,
-                              iconEndPresent: false,
-                              color: FlutterFlowTheme.of(context).secondaryText,
-                              variant: 'ghost',
-                              size: 'medium',
-                              fullWidth: true,
-                              loading: false,
-                              disabled: false,
+                          GestureDetector(
+                            onTap: () => context.goNamed(
+                                PassengersDashboardnewWidget.routeName),
+                            child: wrapWithModel(
+                              model: _model.buttonModel2,
+                              updateCallback: () => safeSetState(() {}),
+                              child: ButtonWidget(
+                                content: 'Skip',
+                                iconPresent: false,
+                                iconEndPresent: false,
+                                color:
+                                    FlutterFlowTheme.of(context).secondaryText,
+                                variant: 'ghost',
+                                size: 'medium',
+                                fullWidth: true,
+                                loading: false,
+                                disabled: false,
+                              ),
                             ),
                           ),
                         ].divide(SizedBox(height: 16.0)),

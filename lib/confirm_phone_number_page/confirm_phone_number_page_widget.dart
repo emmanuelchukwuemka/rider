@@ -200,7 +200,7 @@ class _ConfirmPhoneNumberPageWidgetState
                             PinCodeTextField(
                               autoDisposeControllers: false,
                               appContext: context,
-                              length: 4,
+                              length: 6,
                               textStyle: FlutterFlowTheme.of(context)
                                   .bodyLarge
                                   .override(
@@ -366,7 +366,7 @@ class _ConfirmPhoneNumberPageWidgetState
                             FFButtonWidget(
                               onPressed: () async {
                                 final code = _model.pinCodeController!.text;
-                                if (code.length != 4 && code.length != 6) {
+                                if (code.length != 6) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text('Please enter a valid code.')),
                                   );
@@ -375,7 +375,8 @@ class _ConfirmPhoneNumberPageWidgetState
 
                                 final result = await verifyLoginOtp(widget.email, code, 'passenger');
                                 if (result != null && result['token'] != null) {
-                                  await saveAuthData(result['token'], result['role'] == 'driver' ? result['accountId'] ?? '' : result['accountId'] ?? '', widget.email);
+                                  final userId = result['user']?['id'] ?? result['accountId'] ?? '';
+                                  await saveAuthData(result['token'], userId, widget.email);
                                   context.pushNamed(Page5EnableLocationWidget.routeName);
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(

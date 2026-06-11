@@ -484,7 +484,8 @@ class _PassengerSignupWidgetState extends State<PassengerSignupWidget> {
 
                     final result = await userSignup(email, phone, name, pass1);
                     if (result != null && result['token'] != null) {
-                      await saveAuthData(result['token'], result['accountId'] ?? '', email);
+                      final userId = result['user']?['id'] ?? result['accountId'] ?? '';
+                      await saveAuthData(result['token'], userId, email);
                       await getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0));
                       context.pushNamed('PassengersDashboardnew');
                     } else {

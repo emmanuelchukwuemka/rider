@@ -1,8 +1,7 @@
 import '/flutter_flow/flutter_flow_util.dart';
-import 'p_phone_login_widget.dart' show PPhoneLoginWidget;
 import 'package:flutter/material.dart';
 
-class PPhoneLoginModel extends FlutterFlowModel<PPhoneLoginWidget> {
+class PassengerScheduledRidesModel extends FlutterFlowModel {
   @override
   void initState(BuildContext context) {}
 

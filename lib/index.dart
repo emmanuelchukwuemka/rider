@@ -96,3 +96,9 @@ export '/driver/d_settings/d_settings_widget.dart'
     show DSettingsWidget;
 export '/driver/d_support/d_support_widget.dart'
     show DSupportWidget;
+export '/passengersveiw/p_driver_on_the_way/p_driver_on_the_way_widget.dart'
+    show PDriverOnTheWayWidget;
+export '/passengersveiw/p_driver_arrived/p_driver_arrived_widget.dart'
+    show PDriverArrivedWidget;
+export '/passengersveiw/p_trip_complete/p_trip_complete_widget.dart'
+    show PTripCompleteWidget;

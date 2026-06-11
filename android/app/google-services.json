@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "951809752043",
-    "project_id": "quick-drop-5434vs",
-    "storage_bucket": "quick-drop-5434vs.firebasestorage.app"
+    "project_number": "1030140401902",
+    "project_id": "quickride-1eb1a",
+    "storage_bucket": "quickride-1eb1a.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:951809752043:android:e8db0ac4b8a94c0acbf7ae",
+        "mobilesdk_app_id": "1:1030140401902:android:ce91aa2670280daf8e3bff",
         "android_client_info": {
           "package_name": "com.mycompany.quickdrop"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1030140401902-a49fkqor2osrda84blak1eohmlebpaul.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyApny2CKu10pN5F4fgmJrpg0emy3IIrlPE"
+          "current_key": "AIzaSyCkyCflgg99QpEMm1_7itweuZm7jCgqUaY"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1030140401902-a49fkqor2osrda84blak1eohmlebpaul.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

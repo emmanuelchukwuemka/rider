@@ -13,36 +13,24 @@ import 'package:provider/provider.dart';
 class Page1PhoneLoginModel extends FlutterFlowModel<Page1PhoneLoginWidget> {
   ///  State fields for stateful widgets in this page.
 
-  // Model for Button.
+  // Model for Button (top-right "Become a Driver").
   late Button2Model buttonModel1;
-  // Model for TextField.
+  // Model for email TextField.
   late TextField2Model textFieldModel1;
-  // Model for TextField.
-  late TextField2Model textFieldModel2;
-  // Model for Button.
-  late Button2Model buttonModel2;
-  // Model for Button.
+  // Model for "Send OTP" Button.
   late Button2Model buttonModel3;
-  // Model for Button.
-  late Button2Model buttonModel4;
 
   @override
   void initState(BuildContext context) {
     buttonModel1 = createModel(context, () => Button2Model());
     textFieldModel1 = createModel(context, () => TextField2Model());
-    textFieldModel2 = createModel(context, () => TextField2Model());
-    buttonModel2 = createModel(context, () => Button2Model());
     buttonModel3 = createModel(context, () => Button2Model());
-    buttonModel4 = createModel(context, () => Button2Model());
   }
 
   @override
   void dispose() {
     buttonModel1.dispose();
     textFieldModel1.dispose();
-    textFieldModel2.dispose();
-    buttonModel2.dispose();
     buttonModel3.dispose();
-    buttonModel4.dispose();
   }
 }

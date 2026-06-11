@@ -90,7 +90,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       navigatorKey: appNavigatorKey,
       errorBuilder: (context, state) => appStateNotifier.loggedIn
           ? PassengersDashboardnewWidget()
-          : PRoleSelectionWidget(),
+          : Page1SplashScreenWidget(),
       routes: [
         FFRoute(
           name: DriverEditProfileWidget.routeName,
@@ -122,7 +122,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: '/',
           builder: (context, _) => appStateNotifier.loggedIn
               ? PassengersDashboardnewWidget()
-              : PRoleSelectionWidget(),
+              : Page1SplashScreenWidget(),
         ),
         FFRoute(
           name: Page1SplashScreenWidget.routeName,
@@ -393,7 +393,22 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: DriverSignupWidget.routeName,
           path: DriverSignupWidget.routePath,
           builder: (context, params) => DriverSignupWidget(),
-        )
+        ),
+        FFRoute(
+          name: PDriverOnTheWayWidget.routeName,
+          path: PDriverOnTheWayWidget.routePath,
+          builder: (context, params) => PDriverOnTheWayWidget(),
+        ),
+        FFRoute(
+          name: PDriverArrivedWidget.routeName,
+          path: PDriverArrivedWidget.routePath,
+          builder: (context, params) => PDriverArrivedWidget(),
+        ),
+        FFRoute(
+          name: PTripCompleteWidget.routeName,
+          path: PTripCompleteWidget.routePath,
+          builder: (context, params) => PTripCompleteWidget(),
+        ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );
 

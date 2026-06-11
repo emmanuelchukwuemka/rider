@@ -342,7 +342,8 @@ class _DriverLogin002WidgetState extends State<DriverLogin002Widget> {
                     final result = await driverLogin(identifier, password);
 
                     if (result != null && result['token'] != null) {
-                      await saveAuthData(result['token'], result['accountId'] ?? '', identifier);
+                      final driverId = result['driver']?['id'] ?? result['accountId'] ?? '';
+                      await saveAuthData(result['token'], driverId, identifier);
                       await getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0));
                       context.pushNamed('DriverDashboard6');
                     } else {

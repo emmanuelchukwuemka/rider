@@ -264,9 +264,9 @@ class _PRoleSelectionWidgetState extends State<PRoleSelectionWidget> {
                     FFButtonWidget(
                       onPressed: () async {
                         if (_selectedRole == 'passenger') {
-                          context.pushNamed('Page1SplashScreen');
+                          context.pushNamed('PPhoneLogin');
                         } else {
-                          context.pushNamed('SplashScreen');
+                          context.pushNamed('DriverLogin002');
                         }
                       },
                       text: _selectedRole == 'passenger'

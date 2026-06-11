@@ -1,14 +1,25 @@
 import 'package:rxdart/rxdart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../base_auth_user_provider.dart';
 
 class QuickDropCustomUser extends BaseAuthUser {
-  QuickDropCustomUser({this.loggedIn = false});
+  QuickDropCustomUser({this.loggedIn = false, this.uid, this.email, this.displayName, this.phoneNumber});
   @override
   bool loggedIn;
+  final String? uid;
+  final String? email;
+  final String? displayName;
+  final String? phoneNumber;
+
   @override
   bool get emailVerified => false;
   @override
-  AuthUserInfo get authUserInfo => const AuthUserInfo();
+  AuthUserInfo get authUserInfo => AuthUserInfo(
+    uid: uid,
+    email: email,
+    displayName: displayName,
+    phoneNumber: phoneNumber,
+  );
   @override
   Future? delete() async {}
   @override
@@ -19,5 +30,20 @@ class QuickDropCustomUser extends BaseAuthUser {
   Future? sendEmailVerification() async {}
 }
 
-Stream<BaseAuthUser> QuickDropCustomUserStream() =>
-    BehaviorSubject.seeded(QuickDropCustomUser(loggedIn: false));
+
+final BehaviorSubject<QuickDropCustomUser> quickDropAuthSubject =
+    BehaviorSubject<QuickDropCustomUser>.seeded(QuickDropCustomUser(loggedIn: false));
+
+Stream<BaseAuthUser> QuickDropCustomUserStream() {
+  SharedPreferences.getInstance().then((prefs) {
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    final uid = prefs.getString('uid');
+    final email = prefs.getString('email');
+    quickDropAuthSubject.add(QuickDropCustomUser(
+      loggedIn: isLoggedIn,
+      uid: uid,
+      email: email,
+    ));
+  });
+  return quickDropAuthSubject.stream;
+}

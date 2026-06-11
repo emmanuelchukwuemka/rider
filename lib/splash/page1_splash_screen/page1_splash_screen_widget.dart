@@ -5,6 +5,7 @@ import 'dart:ui';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:material_palette/material_palette.dart';
@@ -35,10 +36,21 @@ class _Page1SplashScreenWidgetState extends State<Page1SplashScreenWidget> {
 
     // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
-      context.pushReplacementNamed(Page1PhoneLoginWidget.routeName);
+      await _requestLocationAndNavigate();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
+  }
+
+  Future<void> _requestLocationAndNavigate() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (mounted) {
+      context.pushReplacementNamed(PRoleSelectionWidget.routeName);
+    }
   }
 
   @override

@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/index.dart';
 import '/pages/button/button_widget.dart';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -493,6 +494,31 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                               ),
                             ),
                           ].divide(SizedBox(height: 8.0)),
+                        ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FFButtonWidget(
+                            onPressed: () {
+                              context.pushNamed(
+                                  PDriverOnTheWayWidget.routeName);
+                            },
+                            text: 'Track Driver',
+                            options: FFButtonOptions(
+                              height: 52.0,
+                              color: FlutterFlowTheme.of(context).primary,
+                              textStyle: FlutterFlowTheme.of(context)
+                                  .titleSmall
+                                  .override(
+                                    font: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w600),
+                                    color: FlutterFlowTheme.of(context)
+                                        .onPrimary,
+                                    letterSpacing: 0.0,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                          ),
                         ),
                       ].divide(SizedBox(height: 24.0)),
                     ),

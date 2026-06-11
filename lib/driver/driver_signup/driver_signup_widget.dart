@@ -482,7 +482,8 @@ class _DriverSignupWidgetState extends State<DriverSignupWidget> {
 
                     final result = await driverSignup(email, phone, name, pass1);
                     if (result != null && result['token'] != null) {
-                      await saveAuthData(result['token'], result['accountId'] ?? '', email);
+                      final driverId = result['driver']?['id'] ?? result['accountId'] ?? '';
+                      await saveAuthData(result['token'], driverId, email);
                       await getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0));
                       context.pushNamed(DriverDocumentUpload1Widget.routeName);
                     } else {
