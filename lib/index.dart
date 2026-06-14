@@ -102,3 +102,5 @@ export '/passengersveiw/p_driver_arrived/p_driver_arrived_widget.dart'
     show PDriverArrivedWidget;
 export '/passengersveiw/p_trip_complete/p_trip_complete_widget.dart'
     show PTripCompleteWidget;
+export '/passengersveiw/passenger_edit_profile/passenger_edit_profile_widget.dart'
+    show PassengerEditProfileWidget;

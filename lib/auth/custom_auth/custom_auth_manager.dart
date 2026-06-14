@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../auth_manager.dart';
 import '../base_auth_user_provider.dart';
+import 'custom_auth_user_provider.dart';
 
 class CustomPhoneAuthManager extends ChangeNotifier {
   void updateState(int state) {
@@ -36,6 +38,14 @@ class CustomAuthManager extends AuthManager {
   }) async {}
 }
 
-Future<void> loadAuthData() async {}
+Future<void> loadAuthData() async {
+  final prefs = await SharedPreferences.getInstance();
+  final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+  if (isLoggedIn) {
+    final uid = prefs.getString('uid') ?? '';
+    final email = prefs.getString('email') ?? '';
+    currentUser = QuickDropCustomUser(loggedIn: true, uid: uid, email: email);
+  }
+}
 Stream<String> get jwtTokenStream => const Stream.empty();
 Stream<BaseAuthUser> get authenticatedUserStream => const Stream.empty();

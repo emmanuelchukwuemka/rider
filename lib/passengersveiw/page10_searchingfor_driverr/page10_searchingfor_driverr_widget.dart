@@ -50,9 +50,7 @@ class _Page10SearchingforDriverrWidgetState
     
     SocketService().onRideAccepted = (data) {
       if (data != null && data['ride'] != null && data['ride']['_id'] == widget.rideId) {
-        context.pushNamed('Page12TripInProgress', queryParameters: {
-          'rideId': widget.rideId,
-        });
+        context.pushNamed('PDriverAssigned');
       }
     };
 
@@ -167,43 +165,20 @@ class _Page10SearchingforDriverrWidgetState
                             fit: BoxFit.contain,
                             animate: _model.isupdated,
                           ),
-                          StreamBuilder<UsersRecord>(
-                            stream:
-                                UsersRecord.getDocument(currentUserReference!),
-                            builder: (context, snapshot) {
-                              // Customize what your widget looks like when it's loading.
-                              if (!snapshot.hasData) {
-                                return Center(
-                                  child: SizedBox(
-                                    width: 50.0,
-                                    height: 50.0,
-                                    child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        FlutterFlowTheme.of(context).primary,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              final containerUsersRecord = snapshot.data!;
-
-                              return Container(
-                                width: 64.0,
-                                height: 64.0,
-                                decoration: BoxDecoration(
-                                  color: FlutterFlowTheme.of(context).primary,
-                                  borderRadius: BorderRadius.circular(9999.0),
-                                  shape: BoxShape.rectangle,
-                                ),
-                                alignment: AlignmentDirectional(0.0, 0.0),
-                                child: Icon(
-                                  Icons.taxi_alert_rounded,
-                                  color: FlutterFlowTheme.of(context).onPrimary,
-                                  size: 32.0,
-                                ),
-                              );
-                            },
+                          Container(
+                            width: 64.0,
+                            height: 64.0,
+                            decoration: BoxDecoration(
+                              color: FlutterFlowTheme.of(context).primary,
+                              borderRadius: BorderRadius.circular(9999.0),
+                              shape: BoxShape.rectangle,
+                            ),
+                            alignment: AlignmentDirectional(0.0, 0.0),
+                            child: Icon(
+                              Icons.taxi_alert_rounded,
+                              color: FlutterFlowTheme.of(context).onPrimary,
+                              size: 32.0,
+                            ),
                           ),
                         ],
                       ),

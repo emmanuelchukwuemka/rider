@@ -257,7 +257,9 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: PConfirmRideWidget.routeName,
           path: PConfirmRideWidget.routePath,
-          builder: (context, params) => PConfirmRideWidget(),
+          builder: (context, params) => PConfirmRideWidget(
+            rideId: params.getParam('rideId', ParamType.String) ?? '',
+          ),
         ),
         FFRoute(
           name: PSearchingDriverWidget.routeName,

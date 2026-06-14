@@ -39,6 +39,7 @@ class _Page6SetDestinationWidgetState
 
   List<Prediction> _suggestions = [];
   bool _isSearching = false;
+  bool _isRequesting = false;
   Timer? _debounce;
 
   static const String _placesApiKey = 'AIzaSyAMK0gm6FqImxY1oLDQ72UcTuZzybFl7Lw';
@@ -355,7 +356,7 @@ class _Page6SetDestinationWidgetState
                   Padding(
                     padding: const EdgeInsets.all(24.0),
                     child: FFButtonWidget(
-                      onPressed: () async {
+                      onPressed: _isRequesting ? null : () async {
                         final pickupLat = _model.placePickerValue1.latLng.latitude;
                         final pickupLng = _model.placePickerValue1.latLng.longitude;
                         if (pickupLat == 0.0 && pickupLng == 0.0) {
@@ -378,6 +379,7 @@ class _Page6SetDestinationWidgetState
                           );
                           return;
                         }
+                        setState(() => _isRequesting = true);
                         final requestData = {
                           'passenger_id': currentUserUid,
                           'pickupLat': pickupLat,
@@ -388,20 +390,26 @@ class _Page6SetDestinationWidgetState
                           'payment_method': 'cash',
                         };
                         final rideResponse = await requestRide(requestData);
+                        if (!mounted) return;
+                        setState(() => _isRequesting = false);
                         if (rideResponse != null && rideResponse['ride'] != null) {
                           context.pushNamed(
-                            'Page10SearchingforDriverr',
+                            'PConfirmRide',
                             queryParameters: {
                               'rideId': rideResponse['ride']['_id'].toString(),
                             },
                           );
                         } else {
+                          final errorMsg = rideResponse?['_error'] ?? 'Failed to request ride. Please try again.';
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Failed to request ride. Please try again.')),
+                            SnackBar(
+                              content: Text(errorMsg),
+                              duration: const Duration(seconds: 6),
+                            ),
                           );
                         }
                       },
-                      text: 'Confirm Destination',
+                      text: _isRequesting ? 'Finding your ride…' : 'Confirm Destination',
                       options: FFButtonOptions(
                         height: 50.0,
                         padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 0.0),

@@ -25,6 +25,7 @@ Future<void> authManagerSignOut() async {
   await prefs.remove('authToken');
   await prefs.remove('uid');
   await prefs.remove('email');
+  currentUser = null;
   quickDropAuthSubject.add(QuickDropCustomUser(loggedIn: false));
 }
 
@@ -42,6 +43,8 @@ Future<void> saveAuthData(String token, String accountId, String email) async {
   await prefs.setString('authToken', token);
   await prefs.setString('uid', accountId);
   await prefs.setString('email', email);
-  quickDropAuthSubject.add(QuickDropCustomUser(loggedIn: true, uid: accountId, email: email));
+  final user = QuickDropCustomUser(loggedIn: true, uid: accountId, email: email);
+  currentUser = user;
+  quickDropAuthSubject.add(user);
 }
 dynamic get currentUserReference => null;

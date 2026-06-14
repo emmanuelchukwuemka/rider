@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/passengersveiw/passenger_activity/passenger_activity_widget.dart';
+import '/passengersveiw/passenger_edit_profile/passenger_edit_profile_widget.dart';
 import '/passengersveiw/passenger_wallet/passenger_wallet_widget.dart';
 import '../passenger_settings/passenger_settings_widget.dart';
 import '../passenger_scheduled_rides/passenger_scheduled_rides_widget.dart';
@@ -113,13 +114,38 @@ class _Page15PassengerProfileWidgetState
                     top: 50.0,
                     left: 15.0,
                     child: InkWell(
-                      onTap: () {
-                        context.safePop();
-                      },
-                      child: Icon(
-                        Icons.arrow_back_ios_rounded,
-                        color: Colors.white,
-                        size: 24.0,
+                      onTap: () => context.safePop(),
+                      child: Icon(Icons.arrow_back_ios_rounded, color: Colors.white, size: 24.0),
+                    ),
+                  ),
+                  // Edit Profile Button
+                  Positioned(
+                    top: 50.0,
+                    right: 15.0,
+                    child: InkWell(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PassengerEditProfileWidget()),
+                      ).then((_) => setState(() {})),
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8.0),
+                          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.0),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.edit_rounded, color: Colors.white, size: 14.0),
+                            SizedBox(width: 4.0),
+                            Text(
+                              'Edit',
+                              style: TextStyle(color: Colors.white, fontSize: 13.0, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

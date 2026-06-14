@@ -13,7 +13,9 @@ import 'p_confirm_ride_model.dart';
 export 'p_confirm_ride_model.dart';
 
 class PConfirmRideWidget extends StatefulWidget {
-  const PConfirmRideWidget({super.key});
+  const PConfirmRideWidget({super.key, this.rideId = ''});
+
+  final String rideId;
 
   static String routeName = 'PConfirmRide';
   static String routePath = '/pConfirmRide';
@@ -905,26 +907,32 @@ class _PConfirmRideWidgetState extends State<PConfirmRideWidget> {
                             mainAxisAlignment: MainAxisAlignment.start,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              wrapWithModel(
-                                model: _model.buttonModel,
-                                updateCallback: () => safeSetState(() {}),
-                                child: ButtonWidget(
-                                  content: 'Confirm QuickDrop',
-                                  iconPresent: false,
-                                  iconEnd: Icon(
-                                    Icons.auto_awesome_rounded,
-                                    color:
-                                        FlutterFlowTheme.of(context).onPrimary,
-                                    size: 16.0,
+                              GestureDetector(
+                                onTap: () => context.pushNamed(
+                                  'Page10SearchingforDriverr',
+                                  queryParameters: {'rideId': widget.rideId},
+                                ),
+                                child: wrapWithModel(
+                                  model: _model.buttonModel,
+                                  updateCallback: () => safeSetState(() {}),
+                                  child: ButtonWidget(
+                                    content: 'Confirm QuickDrop',
+                                    iconPresent: false,
+                                    iconEnd: Icon(
+                                      Icons.auto_awesome_rounded,
+                                      color:
+                                          FlutterFlowTheme.of(context).onPrimary,
+                                      size: 16.0,
+                                    ),
+                                    iconEndPresent: true,
+                                    color: FlutterFlowTheme.of(context)
+                                        .secondaryText,
+                                    variant: 'primary',
+                                    size: 'large',
+                                    fullWidth: true,
+                                    loading: false,
+                                    disabled: false,
                                   ),
-                                  iconEndPresent: true,
-                                  color: FlutterFlowTheme.of(context)
-                                      .secondaryText,
-                                  variant: 'primary',
-                                  size: 'large',
-                                  fullWidth: true,
-                                  loading: false,
-                                  disabled: false,
                                 ),
                               ),
                             ].divide(SizedBox(height: 16.0)),

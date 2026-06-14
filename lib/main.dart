@@ -83,6 +83,7 @@ class _MyAppState extends State<MyApp> {
     // Listen to Supabase auth state changes
     userStream = QuickDropCustomUserStream()
       ..listen((user) {
+        currentUser = user.loggedIn ? user : null;
         _appStateNotifier.update(user);
       });
 

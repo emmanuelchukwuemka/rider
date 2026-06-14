@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 const String baseUrl = 'https://quick-backend-m19x.onrender.com';
@@ -19,18 +21,31 @@ Future<List<Map<String, dynamic>>> fetchCollection(String tableName) async {
 
 Future<Map<String, dynamic>?> requestRide(Map<String, dynamic> data) async {
   try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('authToken') ?? '';
     final response = await http.post(
       Uri.parse('$baseUrl/api/rides/request'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
       body: json.encode(data),
-    );
+    ).timeout(const Duration(seconds: 45));
     if (response.statusCode == 200 || response.statusCode == 201) {
       return json.decode(response.body);
     }
+    try {
+      final body = json.decode(response.body);
+      return {'_error': body['message'] ?? 'Server error (${response.statusCode})'};
+    } catch (_) {
+      return {'_error': 'Server error (${response.statusCode})'};
+    }
+  } on TimeoutException {
+    return {'_error': 'Request timed out — server may be starting up. Please try again.'};
   } catch (e) {
     print('Error requesting ride: $e');
+    return {'_error': 'Could not connect. Please check your internet connection.'};
   }
-  return null;
 }
 
 Future<bool> updateRideStatus(String rideId, String endpoint, [Map<String, dynamic>? data]) async {
@@ -217,6 +232,24 @@ Future<String?> uploadProfileImage(String imagePath) async {
     }
   } catch (e) {
     print('Error uploading profile image: $e');
+  }
+  return null;
+}
+
+Future<Map<String, dynamic>?> updatePassengerProfile(String userId, Map<String, dynamic> data) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('authToken') ?? '';
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/users/$userId'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+  } catch (e) {
+    print('Error updating passenger profile: $e');
   }
   return null;
 }
