@@ -574,14 +574,14 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
                           ),
                           _MenuItem(
                             icon: Icons.directions_car_rounded,
-                            iconColor: const Color(0xFF8B5CF6),
+                            iconColor: theme.primary,
                             label: 'Vehicle Info',
                             subtitle: 'Manage your vehicle details',
                             onTap: () {},
                           ),
                           _MenuItem(
                             icon: Icons.description_rounded,
-                            iconColor: const Color(0xFF0EA5E9),
+                            iconColor: theme.primary,
                             label: 'My Documents',
                             subtitle: 'License, insurance, registration',
                             onTap: () => context
@@ -597,14 +597,14 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
                         _menuCard(theme, [
                           _MenuItem(
                             icon: Icons.payments_rounded,
-                            iconColor: const Color(0xFF16A34A),
+                            iconColor: theme.primary,
                             label: 'Payment & Wallet',
                             subtitle: 'Balance, payout methods',
                             onTap: () => context.pushNamed('DPayment'),
                           ),
                           _MenuItem(
                             icon: Icons.history_rounded,
-                            iconColor: const Color(0xFFF59E0B),
+                            iconColor: theme.primary,
                             label: 'Ride History',
                             subtitle: 'Past trips and receipts',
                             onTap: () =>
@@ -612,7 +612,7 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
                           ),
                           _MenuItem(
                             icon: Icons.calendar_month_rounded,
-                            iconColor: const Color(0xFFEC4899),
+                            iconColor: theme.primary,
                             label: 'Scheduled Rides',
                             subtitle: 'Upcoming bookings',
                             onTap: () =>
@@ -628,14 +628,14 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
                         _menuCard(theme, [
                           _MenuItem(
                             icon: Icons.settings_rounded,
-                            iconColor: const Color(0xFF6366F1),
+                            iconColor: theme.primary,
                             label: 'Settings',
                             subtitle: 'Notifications, privacy, more',
                             onTap: () => context.pushNamed('DSettings'),
                           ),
                           _MenuItem(
                             icon: Icons.notifications_rounded,
-                            iconColor: const Color(0xFFF97316),
+                            iconColor: theme.primary,
                             label: 'Notifications',
                             subtitle: 'Manage alert preferences',
                             onTap: () => context.pushNamed('DSettings'),
@@ -650,14 +650,14 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
                         _menuCard(theme, [
                           _MenuItem(
                             icon: Icons.headset_mic_rounded,
-                            iconColor: const Color(0xFF0EA5E9),
+                            iconColor: theme.primary,
                             label: 'Support',
                             subtitle: 'Get help from our team',
                             onTap: () => context.pushNamed('DSupport'),
                           ),
                           _MenuItem(
                             icon: Icons.article_rounded,
-                            iconColor: const Color(0xFF64748B),
+                            iconColor: theme.primary,
                             label: 'Terms & Privacy',
                             subtitle: 'Policies and guidelines',
                             onTap: () =>
