@@ -67,14 +67,9 @@ class _DriverDocumentUpload1WidgetState
       }
     }
 
-    String? driverId;
-    try {
-      final drivers = await fetchCollection('drivers');
-      final driver = drivers.firstWhere((d) => d['uid'] == currentUserUid, orElse: () => {});
-      driverId = driver['id'];
-    } catch (_) {}
+    final driverId = currentUserUid;
 
-    if (driverId != null && updates.isNotEmpty) {
+    if (driverId.isNotEmpty && updates.isNotEmpty) {
       await updateDriverProfile(driverId, updates);
     }
 

@@ -154,13 +154,19 @@ Future<Map<String, dynamic>?> driverSignup(String email, String phoneNumber, Str
         'password': password,
       }),
     );
-    if (response.statusCode == 201) {
+    if (response.statusCode == 201 || response.statusCode == 200) {
       return json.decode(response.body);
+    }
+    try {
+      final body = json.decode(response.body);
+      return {'error': body['message'] ?? body['error'] ?? 'Signup failed (${response.statusCode})'};
+    } catch (_) {
+      return {'error': 'Signup failed (${response.statusCode})'};
     }
   } catch (e) {
     print('Error in driver signup: $e');
+    return {'error': 'Could not connect. Please check your internet connection.'};
   }
-  return null;
 }
 
 Future<Map<String, dynamic>?> googleLogin(String idToken) async {
