@@ -120,7 +120,7 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
           _isOnline = driver.isOnline == OnlineStatus.Online;
         }
         final isOnline = _isOnline ?? false;
-        final fullName = (driver?.displayName?.isNotEmpty == true ? driver!.displayName : null) ?? currentUserDisplayName.isNotEmpty ? currentUserDisplayName : 'Driver';
+        final fullName = (driver?.displayName?.isNotEmpty == true ? driver!.displayName : null) ?? (currentUserDisplayName.isNotEmpty ? currentUserDisplayName : 'Driver');
         final firstName = fullName.split(' ').first;
         final walletBalance = driver?.walletBalance?.toStringAsFixed(2) ?? '0.00';
         final totalTrips = driver?.totalTrips ?? 0;
