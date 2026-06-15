@@ -27,6 +27,7 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   LatLng? _currentLocation;
   bool _isTogglingOnline = false;
+  bool? _isOnline; // local optimistic state; null = not yet initialised from API
 
   @override
   void initState() {
@@ -67,11 +68,20 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
     return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 
-  Future<void> _toggleOnline(bool isOnline) async {
+  Future<void> _toggleOnline() async {
     if (_isTogglingOnline) return;
-    setState(() => _isTogglingOnline = true);
+    final newStatus = !(_isOnline ?? false);
+    setState(() {
+      _isTogglingOnline = true;
+      _isOnline = newStatus; // optimistic update — UI flips instantly
+    });
     try {
-      await updateDriverProfile(currentUserUid, {'is_active': !isOnline});
+      await updateDriverProfile(currentUserUid, {
+        'is_online': newStatus ? 'Online' : 'Offline',
+      });
+    } catch (_) {
+      // revert on failure
+      if (mounted) setState(() => _isOnline = !newStatus);
     } finally {
       if (mounted) setState(() => _isTogglingOnline = false);
     }
@@ -105,8 +115,12 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
         }
 
         final driver = snapshot.data!.isNotEmpty ? snapshot.data!.first : null;
-        final isOnline = driver?.isOnline == OnlineStatus.Online;
-        final fullName = driver?.displayName ?? 'Driver';
+        // Seed local state once from API; after that _isOnline owns the value
+        if (_isOnline == null && driver != null) {
+          _isOnline = driver.isOnline == OnlineStatus.Online;
+        }
+        final isOnline = _isOnline ?? false;
+        final fullName = (driver?.displayName?.isNotEmpty == true ? driver!.displayName : null) ?? currentUserDisplayName.isNotEmpty ? currentUserDisplayName : 'Driver';
         final firstName = fullName.split(' ').first;
         final walletBalance = driver?.walletBalance?.toStringAsFixed(2) ?? '0.00';
         final totalTrips = driver?.totalTrips ?? 0;
@@ -463,7 +477,7 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                                 GestureDetector(
                                   onTap: _isTogglingOnline
                                       ? null
-                                      : () => _toggleOnline(isOnline),
+                                      : _toggleOnline,
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 300),
                                     width: double.infinity,
