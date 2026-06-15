@@ -427,24 +427,7 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
                                   ),
                                 ),
                                 const Spacer(),
-                                // Settings shortcut
-                                GestureDetector(
-                                  onTap: () =>
-                                      context.pushNamed('DSettings'),
-                                  child: Container(
-                                    width: 38,
-                                    height: 38,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(
-                                        Icons.settings_outlined,
-                                        color: Colors.white,
-                                        size: 20),
-                                  ),
-                                ),
+                                const SizedBox(width: 38),
                               ],
                             ),
                             const SizedBox(height: 24),
