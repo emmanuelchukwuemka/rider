@@ -37,13 +37,15 @@ class AuthUserStreamWidget extends StatelessWidget {
   Widget build(BuildContext context) => builder(context);
 }
 
-Future<void> saveAuthData(String token, String accountId, String email) async {
+Future<void> saveAuthData(String token, String accountId, String email, {String? displayName, String? phoneNumber}) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setBool('isLoggedIn', true);
   await prefs.setString('authToken', token);
   await prefs.setString('uid', accountId);
   await prefs.setString('email', email);
-  final user = QuickDropCustomUser(loggedIn: true, uid: accountId, email: email);
+  if (displayName != null) await prefs.setString('displayName', displayName);
+  if (phoneNumber != null) await prefs.setString('phoneNumber', phoneNumber);
+  final user = QuickDropCustomUser(loggedIn: true, uid: accountId, email: email, displayName: displayName, phoneNumber: phoneNumber);
   currentUser = user;
   quickDropAuthSubject.add(user);
 }

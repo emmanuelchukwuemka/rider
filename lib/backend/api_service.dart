@@ -260,6 +260,23 @@ Future<Map<String, dynamic>?> updatePassengerProfile(String userId, Map<String, 
   return null;
 }
 
+Future<Map<String, dynamic>?> fetchDriverById(String id) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('authToken') ?? '';
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/drivers/$id'),
+      headers: {if (token.isNotEmpty) 'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+  } catch (e) {
+    print('Error fetching driver by id: $e');
+  }
+  return null;
+}
+
 Future<bool> updateDriverProfile(String id, Map<String, dynamic> data) async {
   try {
     final response = await http.put(

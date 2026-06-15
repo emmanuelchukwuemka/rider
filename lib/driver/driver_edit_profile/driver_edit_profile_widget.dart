@@ -330,7 +330,7 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<UserDriverRecord>>(
-      stream: queryUserDriverRecord(singleRecord: true),
+      stream: queryCurrentDriverRecord(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Scaffold(

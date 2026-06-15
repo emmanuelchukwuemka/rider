@@ -39,10 +39,14 @@ Stream<BaseAuthUser> QuickDropCustomUserStream() {
     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     final uid = prefs.getString('uid');
     final email = prefs.getString('email');
+    final displayName = prefs.getString('displayName');
+    final phoneNumber = prefs.getString('phoneNumber');
     quickDropAuthSubject.add(QuickDropCustomUser(
       loggedIn: isLoggedIn,
       uid: uid,
       email: email,
+      displayName: displayName,
+      phoneNumber: phoneNumber,
     ));
   });
   return quickDropAuthSubject.stream;

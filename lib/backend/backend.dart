@@ -1,5 +1,6 @@
 import 'schema/util/firestore_util.dart';
 import 'package:flutter/material.dart';
+import '/auth/custom_auth/auth_util.dart';
 import 'schema/users_record.dart';
 import 'schema/user_driver_record.dart';
 import 'schema/ride_record.dart';
@@ -32,6 +33,28 @@ Stream<List<UserDriverRecord>> queryUserDriverRecord({Query Function(Query)? que
   yield dataList.map((data) {
     return UserDriverRecord.getDocumentFromData(data, DocumentReference('drivers/${data['id'] ?? data['uid'] ?? 'unknown'}'));
   }).toList();
+}
+
+Stream<List<UserDriverRecord>> queryCurrentDriverRecord() async* {
+  final uid = currentUserUid;
+  if (uid.isEmpty) {
+    yield [];
+    return;
+  }
+  // Try direct endpoint first
+  final data = await fetchDriverById(uid);
+  if (data != null) {
+    yield [UserDriverRecord.getDocumentFromData(data, DocumentReference('drivers/$uid'))];
+    return;
+  }
+  // Fallback: filter the full list by id
+  final allDrivers = await fetchCollection('drivers');
+  final matched = allDrivers.where((d) =>
+    d['id']?.toString() == uid || d['_id']?.toString() == uid
+  ).toList();
+  yield matched.map((d) => UserDriverRecord.getDocumentFromData(
+    d, DocumentReference('drivers/${d['id'] ?? uid}')
+  )).toList();
 }
 
 Stream<List<RideRecord>> queryRideRecord({Query Function(Query)? queryBuilder, int limit = -1, bool singleRecord = false}) async* {

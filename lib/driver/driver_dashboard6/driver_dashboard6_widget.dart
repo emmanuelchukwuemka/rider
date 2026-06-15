@@ -91,7 +91,7 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
     }
 
     return StreamBuilder<List<UserDriverRecord>>(
-      stream: queryUserDriverRecord(singleRecord: true),
+      stream: queryCurrentDriverRecord(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Scaffold(
