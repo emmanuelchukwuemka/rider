@@ -9,7 +9,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 // Replace this with your Agora App ID from https://console.agora.io
 // Create a free account → New Project → App ID (Testing mode, no certificate)
 // ─────────────────────────────────────────────────────────────────────────────
-const String _agoraAppId = 'YOUR_AGORA_APP_ID';
+const String _agoraAppId = '02b688c34c6f4a7e9bf62856d8e6feb7';
 
 class InAppCallWidget extends StatefulWidget {
   const InAppCallWidget({
