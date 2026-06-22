@@ -12,6 +12,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_service.dart';
 import '/backend/socket_service.dart';
 import '/auth/custom_auth/auth_util.dart';
+import '/components/in_app_call/in_app_call_widget.dart';
+import '/components/in_app_chat/in_app_chat_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -576,7 +578,22 @@ class _Page12TripInProgressWidgetState
                                 fillColor: theme.secondaryBackground,
                                 icon: Icon(Icons.chat_bubble_rounded,
                                     color: theme.primary, size: 20.0),
-                                onPressed: _messagePassenger,
+                                onPressed: () {
+                                  final ride = _rideData;
+                                  final passengerName = (ride?['passenger_name'] ?? 'Passenger').toString().trim();
+                                  final passengerId = (ride?['passenger_ref'] ?? '').toString();
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => InAppChatWidget(
+                                      rideId: widget.rideId,
+                                      myId: currentUserUid,
+                                      myName: 'Driver',
+                                      myRole: 'driver',
+                                      otherId: passengerId,
+                                      otherName: passengerName.isNotEmpty ? passengerName : 'Passenger',
+                                      otherRole: 'passenger',
+                                    ),
+                                  ));
+                                },
                               ),
                               const SizedBox(width: 8.0),
                               FlutterFlowIconButton(
@@ -587,7 +604,17 @@ class _Page12TripInProgressWidgetState
                                 fillColor: theme.secondaryBackground,
                                 icon: Icon(Icons.call_rounded,
                                     color: theme.primary, size: 20.0),
-                                onPressed: _callPassenger,
+                                onPressed: () {
+                                  final ride = _rideData;
+                                  final passengerName = (ride?['passenger_name'] ?? 'Passenger').toString().trim();
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => InAppCallWidget(
+                                      channelName: widget.rideId,
+                                      callerName: 'Driver',
+                                      receiverName: passengerName.isNotEmpty ? passengerName : 'Passenger',
+                                    ),
+                                  ));
+                                },
                               ),
                             ],
                           ),

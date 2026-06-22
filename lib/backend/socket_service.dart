@@ -13,8 +13,10 @@ class SocketService {
   Function(dynamic)? onRideCompleted;
   Function(dynamic)? onRideCancelled;
   Function(dynamic)? onDriverLocationUpdated;
+  Function(dynamic)? onDriverArrived;
+  Function(dynamic)? onChatMessage;
 
-  static const String _serverUrl = 'https://quick-backend-m19x.onrender.com';
+  static const String _serverUrl = 'https://quickbackend-733b.onrender.com';
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -68,6 +70,19 @@ class SocketService {
       onDriverLocationUpdated?.call(data);
     });
 
+    _socket!.on('driver_arrived', (data) {
+      print('[Socket] driver_arrived: $data');
+      onDriverArrived?.call(data);
+    });
+    _socket!.on('driverArrived', (data) {
+      print('[Socket] driverArrived: $data');
+      onDriverArrived?.call(data);
+    });
+
+    _socket!.on('chat_message', (data) {
+      onChatMessage?.call(data);
+    });
+
     _socket!.connect();
   }
 
@@ -78,6 +93,26 @@ class SocketService {
     } else if (userId != null) {
       _socket!.emit('updateUserLocation', {'userId': userId, 'lat': lat, 'lng': lng});
     }
+  }
+
+  void sendChatMessage({
+    required String rideId,
+    required String toId,
+    required String toRole,
+    required String message,
+    required String senderName,
+    required String senderId,
+  }) {
+    if (_socket == null || !_socket!.connected) return;
+    _socket!.emit('chat_message', {
+      'rideId': rideId,
+      'toId': toId,
+      'toRole': toRole,
+      'message': message,
+      'senderName': senderName,
+      'senderId': senderId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   void disconnect() {
