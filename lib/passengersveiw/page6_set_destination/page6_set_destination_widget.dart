@@ -1,5 +1,6 @@
 import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -380,12 +381,22 @@ class _Page6SetDestinationWidgetState
                           return;
                         }
                         setState(() => _isRequesting = true);
+                        final pickupAddr = _model.placePickerValue1.address.isNotEmpty
+                            ? _model.placePickerValue1.address
+                            : _model.placePickerValue1.name.isNotEmpty
+                                ? _model.placePickerValue1.name
+                                : 'Current Location';
+                        final dropoffAddr = _model.placePickerValue2.address.isNotEmpty
+                            ? _model.placePickerValue2.address
+                            : _model.placePickerValue2.name;
                         final requestData = {
                           'passenger_id': currentUserUid,
                           'pickupLat': pickupLat,
                           'pickupLng': pickupLng,
                           'dropoffLat': dropoffLat,
                           'dropoffLng': dropoffLng,
+                          'pickupAddress': pickupAddr,
+                          'dropoffAddress': dropoffAddr,
                           'ride_type': 'standard',
                           'payment_method': 'cash',
                         };
@@ -393,11 +404,14 @@ class _Page6SetDestinationWidgetState
                         if (!mounted) return;
                         setState(() => _isRequesting = false);
                         if (rideResponse != null && rideResponse['ride'] != null) {
+                          final rideId = rideResponse['ride']['_id'].toString();
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('activeRideId', rideId);
+                          await prefs.setString('activeRideStatus', 'pending');
+                          if (!mounted) return;
                           context.pushNamed(
                             'PConfirmRide',
-                            queryParameters: {
-                              'rideId': rideResponse['ride']['_id'].toString(),
-                            },
+                            queryParameters: {'rideId': rideId},
                           );
                         } else {
                           final errorMsg = rideResponse?['_error'] ?? 'Failed to request ride. Please try again.';
