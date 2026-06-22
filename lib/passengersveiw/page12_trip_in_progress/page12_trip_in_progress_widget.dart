@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:http/http.dart' as http;
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_service.dart';
 import '/backend/socket_service.dart';
 import '/auth/custom_auth/auth_util.dart';
@@ -222,6 +223,47 @@ class _Page12TripInProgressWidgetState
     if (v is double) return v;
     if (v is int) return v.toDouble();
     return double.tryParse(v.toString());
+  }
+
+  String get _passengerPhone =>
+      (_rideData?['passenger_phone'] ?? '').toString().trim();
+
+  Future<void> _callPassenger() async {
+    final phone = _passengerPhone;
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passenger phone number not available')),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot call $phone')),
+      );
+    }
+  }
+
+  Future<void> _messagePassenger() async {
+    final phone = _passengerPhone;
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passenger phone number not available')),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'sms', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot open messages for $phone')),
+      );
+    }
   }
 
   Future<void> _endRide() async {
@@ -534,7 +576,7 @@ class _Page12TripInProgressWidgetState
                                 fillColor: theme.secondaryBackground,
                                 icon: Icon(Icons.chat_bubble_rounded,
                                     color: theme.primary, size: 20.0),
-                                onPressed: () {},
+                                onPressed: _messagePassenger,
                               ),
                               const SizedBox(width: 8.0),
                               FlutterFlowIconButton(
@@ -545,7 +587,7 @@ class _Page12TripInProgressWidgetState
                                 fillColor: theme.secondaryBackground,
                                 icon: Icon(Icons.call_rounded,
                                     color: theme.primary, size: 20.0),
-                                onPressed: () {},
+                                onPressed: _callPassenger,
                               ),
                             ],
                           ),
