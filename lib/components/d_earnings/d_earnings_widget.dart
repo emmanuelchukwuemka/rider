@@ -98,9 +98,7 @@ class _DEarningsWidgetState extends State<DEarningsWidget> {
                                       FlutterFlowTheme.of(context).primaryText,
                                   size: 24.0,
                                 ),
-                                onPressed: () {
-                                  print('IconButton pressed ...');
-                                },
+                                onPressed: () => Navigator.of(context).pop(),
                               ),
                               Text(
                                 'Earnings',
@@ -138,7 +136,12 @@ class _DEarningsWidgetState extends State<DEarningsWidget> {
                                   size: 24.0,
                                 ),
                                 onPressed: () {
-                                  print('IconButton pressed ...');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Earnings are updated after each completed trip.'),
+                                      duration: Duration(seconds: 3),
+                                    ),
+                                  );
                                 },
                               ),
                             ],
@@ -631,8 +634,8 @@ class _DEarningsWidgetState extends State<DEarningsWidget> {
                                           return EarningsCardWidget(
                                             amount: ride.finalFare.toStringAsFixed(0),
                                             date: DateFormat('MMM d, h:mm a').format(ride.completedAt ?? ride.requestedAt ?? DateTime.now()),
-                                            destination: 'Dropoff',
-                                            pickup: 'Pickup',
+                                            destination: ride.dropoffAddress.isNotEmpty ? ride.dropoffAddress : '—',
+                                            pickup: ride.pickupAddress.isNotEmpty ? ride.pickupAddress : '—',
                                           );
                                         }).toList().divide(SizedBox(height: 8.0)),
                                       );

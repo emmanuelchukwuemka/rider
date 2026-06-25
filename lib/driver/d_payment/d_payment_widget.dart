@@ -209,6 +209,29 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
         final totalTrips = driver?.totalTrips ?? 0;
         final rating = driver?.driverRating?.toStringAsFixed(1) ?? '5.0';
 
+        return StreamBuilder<List<RideRecord>>(
+          stream: queryRideRecord(),
+          builder: (context, rideSnapshot) {
+            final rides = rideSnapshot.data ?? [];
+            final now = DateTime.now();
+            final todayStart = DateTime(now.year, now.month, now.day);
+            final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
+            final monthStart = DateTime(now.year, now.month, 1);
+
+            final todayEarnings = rides
+                .where((r) => r.completedAt != null && r.completedAt!.isAfter(todayStart))
+                .fold<double>(0.0, (sum, r) => sum + r.finalFare);
+            final weeklyEarnings = rides
+                .where((r) => r.completedAt != null && r.completedAt!.isAfter(weekStart))
+                .fold<double>(0.0, (sum, r) => sum + r.finalFare);
+            final monthlyEarnings = rides
+                .where((r) => r.completedAt != null && r.completedAt!.isAfter(monthStart))
+                .fold<double>(0.0, (sum, r) => sum + r.finalFare);
+            final recentRides = rides
+                .where((r) => r.completedAt != null)
+                .toList()
+              ..sort((a, b) => b.completedAt!.compareTo(a.completedAt!));
+
         return Scaffold(
           key: scaffoldKey,
           backgroundColor: theme.primaryBackground,
@@ -287,9 +310,9 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
                           // Quick stats row
                           Row(
                             children: [
-                              _heroStat('₦0.00', 'Today'),
+                              _heroStat('₦${todayEarnings.toStringAsFixed(2)}', 'Today'),
                               _heroDivider(),
-                              _heroStat('₦0.00', 'This Week'),
+                              _heroStat('₦${weeklyEarnings.toStringAsFixed(2)}', 'This Week'),
                               _heroDivider(),
                               _heroStat('$totalTrips', 'Total Trips'),
                             ],
@@ -381,9 +404,9 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
                           Expanded(
                             child: _EarningsCard(
                               label: 'This Month',
-                              value: '₦0.00',
+                              value: '₦${monthlyEarnings.toStringAsFixed(2)}',
                               icon: Icons.calendar_month_rounded,
-                              trend: '+0%',
+                              trend: '',
                               positive: true,
                             ),
                           ),
@@ -432,55 +455,128 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
                 ),
               ),
 
-              // ── Empty state ───────────────────────────────────────────
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: theme.secondaryBackground,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.alternate),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 48),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          alignment: Alignment.center,
+              // ── Transactions list ─────────────────────────────────────
+              recentRides.isEmpty
+                  ? SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                        child: Container(
                           decoration: BoxDecoration(
-                            color: theme.primary.withOpacity(0.08),
-                            shape: BoxShape.circle,
+                            color: theme.secondaryBackground,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: theme.alternate),
                           ),
-                          child: Icon(Icons.receipt_long_rounded,
-                              color: theme.primary, size: 30),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'No transactions yet',
-                          style: GoogleFonts.inter(
-                            color: theme.primaryText,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                          padding: const EdgeInsets.symmetric(vertical: 48),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 64,
+                                height: 64,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: theme.primary.withOpacity(0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.receipt_long_rounded,
+                                    color: theme.primary, size: 30),
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                'No transactions yet',
+                                style: GoogleFonts.inter(
+                                  color: theme.primaryText,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Complete trips to see your earnings here',
+                                style: GoogleFonts.inter(
+                                  color: theme.secondaryText,
+                                  fontSize: 13,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Complete trips to see your earnings here',
-                          style: GoogleFonts.inter(
-                            color: theme.secondaryText,
-                            fontSize: 13,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                      ),
+                    )
+                  : SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final ride = recentRides[index];
+                          final dateStr = ride.completedAt != null
+                              ? dateTimeFormat('MMM d, h:mm a', ride.completedAt)
+                              : '—';
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: theme.secondaryBackground,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: theme.alternate),
+                              ),
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: theme.primary.withOpacity(0.08),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(Icons.directions_car_rounded,
+                                            color: theme.primary, size: 20),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Trip Completed',
+                                            style: GoogleFonts.inter(
+                                              color: theme.primaryText,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            dateStr,
+                                            style: GoogleFonts.inter(
+                                              color: theme.secondaryText,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    '+₦${ride.finalFare.toStringAsFixed(2)}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF16A34A),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: recentRides.length,
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ],
           ),
 
@@ -488,6 +584,8 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
           bottomNavigationBar: _DriverBottomNav(activeIndex: 1),
         );
       },
+    );
+  }
     );
   }
 

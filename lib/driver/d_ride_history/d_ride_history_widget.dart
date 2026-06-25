@@ -97,8 +97,8 @@ class _DRideHistoryWidgetState extends State<DRideHistoryWidget> {
                   child: EarningsCardWidget(
                     amount: ride.finalFare.toStringAsFixed(0),
                     date: DateFormat('MMM d, h:mm a').format(ride.completedAt ?? ride.requestedAt ?? DateTime.now()),
-                    destination: 'Dropoff',
-                    pickup: 'Pickup',
+                    destination: ride.dropoffAddress.isNotEmpty ? ride.dropoffAddress : '—',
+                    pickup: ride.pickupAddress.isNotEmpty ? ride.pickupAddress : '—',
                   ),
                 );
               },

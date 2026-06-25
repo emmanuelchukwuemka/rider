@@ -192,10 +192,9 @@ class _PassengerActivityWidgetState extends State<PassengerActivityWidget> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            valueOrDefault<String>(
-                                              'Pickup Location',
-                                              'Pickup Location',
-                                            ),
+                                            ride.pickupAddress.isNotEmpty
+                                                ? ride.pickupAddress
+                                                : 'Pickup Location',
                                             style: FlutterFlowTheme.of(context).bodyMedium.override(
                                                   font: GoogleFonts.inter(
                                                     fontWeight: FontWeight.w500,
@@ -207,10 +206,9 @@ class _PassengerActivityWidgetState extends State<PassengerActivityWidget> {
                                           Padding(
                                             padding: EdgeInsetsDirectional.fromSTEB(0.0, 16.0, 0.0, 0.0),
                                             child: Text(
-                                              valueOrDefault<String>(
-                                                'Dropoff Location',
-                                                'Dropoff Location',
-                                              ),
+                                              ride.dropoffAddress.isNotEmpty
+                                                  ? ride.dropoffAddress
+                                                  : 'Dropoff Location',
                                               style: FlutterFlowTheme.of(context).bodyMedium.override(
                                                     font: GoogleFonts.inter(
                                                       fontWeight: FontWeight.w500,

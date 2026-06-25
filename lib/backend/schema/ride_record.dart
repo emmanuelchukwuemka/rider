@@ -92,6 +92,16 @@ class RideRecord extends FirestoreRecord {
   double get distanceKm => _distanceKm ?? 0.0;
   bool hasDistanceKm() => _distanceKm != null;
 
+  // "pickup_address" field.
+  String? _pickupAddress;
+  String get pickupAddress => _pickupAddress ?? '';
+  bool hasPickupAddress() => _pickupAddress != null;
+
+  // "dropoff_address" field.
+  String? _dropoffAddress;
+  String get dropoffAddress => _dropoffAddress ?? '';
+  bool hasDropoffAddress() => _dropoffAddress != null;
+
   void _initializeFields() {
     _passengerRef = snapshotData['passenger_ref'] as DocumentReference?;
     _status = snapshotData['status'] is RideStatus
@@ -114,6 +124,8 @@ class RideRecord extends FirestoreRecord {
     _pickup = snapshotData['pickup'] as LatLng?;
     _dropoff = snapshotData['dropoff'] as LatLng?;
     _distanceKm = castToType<double>(snapshotData['distanceKm']);
+    _pickupAddress = (snapshotData['pickup_address'] ?? snapshotData['pickupAddress']) as String?;
+    _dropoffAddress = (snapshotData['dropoff_address'] ?? snapshotData['dropoffAddress']) as String?;
   }
 
   static CollectionReference get collection =>
@@ -165,6 +177,8 @@ Map<String, dynamic> createRideRecordData({
   LatLng? pickup,
   LatLng? dropoff,
   double? distanceKm,
+  String? pickupAddress,
+  String? dropoffAddress,
 }) {
   final firestoreData = mapToFirestore(
     <String, dynamic>{
@@ -183,6 +197,8 @@ Map<String, dynamic> createRideRecordData({
       'pickup': pickup,
       'dropoff': dropoff,
       'distanceKm': distanceKm,
+      'pickup_address': pickupAddress,
+      'dropoff_address': dropoffAddress,
     }.withoutNulls,
   );
 

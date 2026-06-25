@@ -99,16 +99,26 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                         ),
                         Padding(
                           padding: EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 16.0),
-                          child: AuthUserStreamWidget(
-                            builder: (context) => Text(
-                              '₦0.00',
-                              style: FlutterFlowTheme.of(context).displaySmall.override(
-                                    font: GoogleFonts.inter(
-                                      color: FlutterFlowTheme.of(context).info,
-                                      fontWeight: FontWeight.bold,
+                          child: StreamBuilder<List<UsersRecord>>(
+                            stream: queryUsersRecord(),
+                            builder: (context, snapshot) {
+                              final uid = currentUserUid;
+                              final users = snapshot.data ?? [];
+                              final user = users.cast<UsersRecord?>().firstWhere(
+                                (u) => u?.uid == uid || u?.reference.id == uid,
+                                orElse: () => null,
+                              );
+                              final balance = user?.walletBalance ?? 0.0;
+                              return Text(
+                                '₦${balance.toStringAsFixed(2)}',
+                                style: FlutterFlowTheme.of(context).displaySmall.override(
+                                      font: GoogleFonts.inter(
+                                        color: FlutterFlowTheme.of(context).info,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ),
-                            ),
+                              );
+                            },
                           ),
                         ),
                         Row(
@@ -206,7 +216,7 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                         itemCount: rides.length,
                         itemBuilder: (context, index) {
                           final ride = rides[index];
-                          final fare = ride.finalFare > 0 ? ride.finalFare : 1500.0;
+                          final fare = ride.finalFare;
                           final formattedTime = dateTimeFormat('MMM d, h:mm a', ride.requestedAt ?? DateTime.now());
                           return _buildTransactionItem(
                             context,
