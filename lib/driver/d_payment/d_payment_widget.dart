@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/backend/backend.dart';
+import '/backend/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/auth/custom_auth/auth_util.dart';
@@ -21,10 +21,39 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
   late DPaymentModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  bool _loading = true;
+  double _walletBalance = 0.0;
+  int _totalTrips = 0;
+  String _rating = '—';
+  List<Map<String, dynamic>> _rides = [];
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => DPaymentModel());
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final uid = currentUserUid;
+    final results = await Future.wait([
+      fetchDriverById(uid),
+      fetchDriverRideHistory(uid),
+    ]);
+
+    final driver = results[0] as Map<String, dynamic>?;
+    final rides = results[1] as List<Map<String, dynamic>>;
+
+    if (mounted) {
+      setState(() {
+        _walletBalance = (driver?['wallet_balance'] ?? driver?['walletBalance'] ?? 0).toDouble();
+        _totalTrips = (driver?['total_trips'] ?? driver?['totalTrips'] ?? rides.length) as int;
+        final r = driver?['driver_rating'] ?? driver?['driverRating'];
+        _rating = r != null ? (r as num).toStringAsFixed(1) : '—';
+        _rides = rides;
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -115,7 +144,6 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // Quick amount chips
                   Wrap(
                     spacing: 8,
                     children: ['₦1,000', '₦5,000', '₦10,000', 'All'].map((v) {
@@ -154,9 +182,9 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
                     onTap: () {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
+                        const SnackBar(
                           content: Text('Withdrawal request submitted!'),
-                          backgroundColor: const Color(0xFF16A34A),
+                          backgroundColor: Color(0xFF16A34A),
                         ),
                       );
                     },
@@ -198,394 +226,396 @@ class _DPaymentWidgetState extends State<DPaymentWidget> {
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
 
-    return StreamBuilder<List<UserDriverRecord>>(
-      stream: queryCurrentDriverRecord(),
-      builder: (context, snapshot) {
-        final driver =
-            snapshot.hasData && snapshot.data!.isNotEmpty
-                ? snapshot.data!.first
-                : null;
-        final walletBalance = driver?.walletBalance ?? 0.0;
-        final totalTrips = driver?.totalTrips ?? 0;
-        final rating = driver?.driverRating?.toStringAsFixed(1) ?? '5.0';
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: theme.primaryBackground,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
-        return StreamBuilder<List<RideRecord>>(
-          stream: queryRideRecord(),
-          builder: (context, rideSnapshot) {
-            final rides = rideSnapshot.data ?? [];
-            final now = DateTime.now();
-            final todayStart = DateTime(now.year, now.month, now.day);
-            final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
-            final monthStart = DateTime(now.year, now.month, 1);
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
+    final monthStart = DateTime(now.year, now.month, 1);
 
-            final todayEarnings = rides
-                .where((r) => r.completedAt != null && r.completedAt!.isAfter(todayStart))
-                .fold<double>(0.0, (sum, r) => sum + r.finalFare);
-            final weeklyEarnings = rides
-                .where((r) => r.completedAt != null && r.completedAt!.isAfter(weekStart))
-                .fold<double>(0.0, (sum, r) => sum + r.finalFare);
-            final monthlyEarnings = rides
-                .where((r) => r.completedAt != null && r.completedAt!.isAfter(monthStart))
-                .fold<double>(0.0, (sum, r) => sum + r.finalFare);
-            final recentRides = rides
-                .where((r) => r.completedAt != null)
-                .toList()
-              ..sort((a, b) => b.completedAt!.compareTo(a.completedAt!));
+    double todayEarnings = 0, weeklyEarnings = 0, monthlyEarnings = 0;
+    final List<Map<String, dynamic>> completedRides = [];
 
-        return Scaffold(
-          key: scaffoldKey,
-          backgroundColor: theme.primaryBackground,
-          body: CustomScrollView(
-            slivers: [
-              // ── Hero header ───────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.primary,
-                        theme.primary.withOpacity(0.72),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Top bar
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => context.pop(),
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.arrow_back_rounded,
-                                      color: Colors.white, size: 20),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Text(
-                                'Earnings & Wallet',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 28),
-                          // Balance label
-                          Text(
-                            'Available Balance',
-                            style: GoogleFonts.inter(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          // Balance amount
-                          Text(
-                            '₦${walletBalance.toStringAsFixed(2)}',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          // Quick stats row
-                          Row(
-                            children: [
-                              _heroStat('₦${todayEarnings.toStringAsFixed(2)}', 'Today'),
-                              _heroDivider(),
-                              _heroStat('₦${weeklyEarnings.toStringAsFixed(2)}', 'This Week'),
-                              _heroDivider(),
-                              _heroStat('$totalTrips', 'Total Trips'),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+    for (final ride in _rides) {
+      final status = ride['status']?.toString() ?? '';
+      if (status != 'completed') continue;
+      final fare = (ride['final_fare'] ?? ride['finalFare'] ?? ride['fare'] ?? 0).toDouble();
+      final rawDate = ride['completed_at'] ?? ride['completedAt'];
+      DateTime? completedAt;
+      if (rawDate != null) {
+        try {
+          completedAt = DateTime.parse(rawDate.toString());
+        } catch (_) {}
+      }
+      completedRides.add({...ride, '_completedAt': completedAt, '_fare': fare});
+      if (completedAt != null) {
+        if (completedAt.isAfter(todayStart)) todayEarnings += fare;
+        if (completedAt.isAfter(weekStart)) weeklyEarnings += fare;
+        if (completedAt.isAfter(monthStart)) monthlyEarnings += fare;
+      }
+    }
+
+    completedRides.sort((a, b) {
+      final da = a['_completedAt'] as DateTime?;
+      final db = b['_completedAt'] as DateTime?;
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return db.compareTo(da);
+    });
+
+    return Scaffold(
+      key: scaffoldKey,
+      backgroundColor: theme.primaryBackground,
+      body: CustomScrollView(
+        slivers: [
+          // ── Hero header ───────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    theme.primary,
+                    theme.primary.withOpacity(0.72),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-
-              // ── Action buttons ────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Transform.translate(
-                  offset: const Offset(0, -20),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 18),
-                    decoration: BoxDecoration(
-                      color: theme.secondaryBackground,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                      border: Border.all(color: theme.alternate),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _ActionBtn(
-                          icon: Icons.arrow_upward_rounded,
-                          label: 'Cash Out',
-                          color: theme.primary,
-                          onTap: () => _showCashOutSheet(context, walletBalance),
-                        ),
-                        _ActionBtn(
-                          icon: Icons.account_balance_rounded,
-                          label: 'Bank Account',
-                          color: const Color(0xFF8B5CF6),
-                          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Coming soon!')),
-                          ),
-                        ),
-                        _ActionBtn(
-                          icon: Icons.insights_rounded,
-                          label: 'Analytics',
-                          color: const Color(0xFF0EA5E9),
-                          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Coming soon!')),
-                          ),
-                        ),
-                        _ActionBtn(
-                          icon: Icons.receipt_long_rounded,
-                          label: 'Statement',
-                          color: const Color(0xFFF59E0B),
-                          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Coming soon!')),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── Earnings summary cards ────────────────────────────────
-              SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Earnings Overview',
-                        style: GoogleFonts.inter(
-                          color: theme.primaryText,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(
-                            child: _EarningsCard(
-                              label: 'This Month',
-                              value: '₦${monthlyEarnings.toStringAsFixed(2)}',
-                              icon: Icons.calendar_month_rounded,
-                              trend: '',
-                              positive: true,
+                          GestureDetector(
+                            onTap: () => context.pop(),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.arrow_back_rounded,
+                                  color: Colors.white, size: 20),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _EarningsCard(
-                              label: 'Driver Rating',
-                              value: '★ $rating',
-                              icon: Icons.star_rounded,
-                              trend: 'Excellent',
-                              positive: true,
+                          const SizedBox(width: 14),
+                          Text(
+                            'Earnings & Wallet',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+                      Text(
+                        'Available Balance',
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '₦${_walletBalance.toStringAsFixed(2)}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 40,
+                          fontWeight: FontWeight.bold,
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          _heroStat('₦${todayEarnings.toStringAsFixed(2)}', 'Today'),
+                          _heroDivider(),
+                          _heroStat('₦${weeklyEarnings.toStringAsFixed(2)}', 'This Week'),
+                          _heroDivider(),
+                          _heroStat('$_totalTrips', 'Total Trips'),
                         ],
                       ),
                     ],
                   ),
                 ),
               ),
+            ),
+          ),
 
-              // ── Recent transactions header ─────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // ── Action buttons ────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Transform.translate(
+              offset: const Offset(0, -20),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 18),
+                decoration: BoxDecoration(
+                  color: theme.secondaryBackground,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  border: Border.all(color: theme.alternate),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _ActionBtn(
+                      icon: Icons.arrow_upward_rounded,
+                      label: 'Cash Out',
+                      color: theme.primary,
+                      onTap: () => _showCashOutSheet(context, _walletBalance),
+                    ),
+                    _ActionBtn(
+                      icon: Icons.account_balance_rounded,
+                      label: 'Bank Account',
+                      color: const Color(0xFF8B5CF6),
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Coming soon!')),
+                      ),
+                    ),
+                    _ActionBtn(
+                      icon: Icons.insights_rounded,
+                      label: 'Analytics',
+                      color: const Color(0xFF0EA5E9),
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Coming soon!')),
+                      ),
+                    ),
+                    _ActionBtn(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Statement',
+                      color: const Color(0xFFF59E0B),
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Coming soon!')),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Earnings summary cards ────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Earnings Overview',
+                    style: GoogleFonts.inter(
+                      color: theme.primaryText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
                     children: [
-                      Text(
-                        'Recent Transactions',
-                        style: GoogleFonts.inter(
-                          color: theme.primaryText,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: _EarningsCard(
+                          label: 'This Month',
+                          value: '₦${monthlyEarnings.toStringAsFixed(2)}',
+                          icon: Icons.calendar_month_rounded,
+                          trend: '',
+                          positive: true,
                         ),
                       ),
-                      Text(
-                        'See All',
-                        style: GoogleFonts.inter(
-                          color: theme.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _EarningsCard(
+                          label: 'Driver Rating',
+                          value: '★ $_rating',
+                          icon: Icons.star_rounded,
+                          trend: 'Excellent',
+                          positive: true,
                         ),
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
+            ),
+          ),
 
-              // ── Transactions list ─────────────────────────────────────
-              recentRides.isEmpty
-                  ? SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+          // ── Recent transactions header ─────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Recent Transactions',
+                    style: GoogleFonts.inter(
+                      color: theme.primaryText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'See All',
+                    style: GoogleFonts.inter(
+                      color: theme.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Transactions list ─────────────────────────────────────
+          completedRides.isEmpty
+              ? SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.secondaryBackground,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.alternate),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 48),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: theme.primary.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.receipt_long_rounded,
+                                color: theme.primary, size: 30),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'No transactions yet',
+                            style: GoogleFonts.inter(
+                              color: theme.primaryText,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Complete trips to see your earnings here',
+                            style: GoogleFonts.inter(
+                              color: theme.secondaryText,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final ride = completedRides[index];
+                      final completedAt = ride['_completedAt'] as DateTime?;
+                      final fare = ride['_fare'] as double;
+                      final dateStr = completedAt != null
+                          ? dateTimeFormat('MMM d, h:mm a', completedAt)
+                          : '—';
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                         child: Container(
                           decoration: BoxDecoration(
                             color: theme.secondaryBackground,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: theme.alternate),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 48),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                width: 64,
-                                height: 64,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: theme.primary.withOpacity(0.08),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(Icons.receipt_long_rounded,
-                                    color: theme.primary, size: 30),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: theme.primary.withOpacity(0.08),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(Icons.directions_car_rounded,
+                                        color: theme.primary, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Trip Completed',
+                                        style: GoogleFonts.inter(
+                                          color: theme.primaryText,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        dateStr,
+                                        style: GoogleFonts.inter(
+                                          color: theme.secondaryText,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 14),
                               Text(
-                                'No transactions yet',
+                                '+₦${fare.toStringAsFixed(2)}',
                                 style: GoogleFonts.inter(
-                                  color: theme.primaryText,
+                                  color: const Color(0xFF16A34A),
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Complete trips to see your earnings here',
-                                style: GoogleFonts.inter(
-                                  color: theme.secondaryText,
-                                  fontSize: 13,
-                                ),
-                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    )
-                  : SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final ride = recentRides[index];
-                          final dateStr = ride.completedAt != null
-                              ? dateTimeFormat('MMM d, h:mm a', ride.completedAt)
-                              : '—';
-                          return Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: theme.secondaryBackground,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: theme.alternate),
-                              ),
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 40,
-                                        height: 40,
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          color: theme.primary.withOpacity(0.08),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(Icons.directions_car_rounded,
-                                            color: theme.primary, size: 20),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Trip Completed',
-                                            style: GoogleFonts.inter(
-                                              color: theme.primaryText,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            dateStr,
-                                            style: GoogleFonts.inter(
-                                              color: theme.secondaryText,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  Text(
-                                    '+₦${ride.finalFare.toStringAsFixed(2)}',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF16A34A),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                        childCount: recentRides.length,
-                      ),
-                    ),
-            ],
-          ),
+                      );
+                    },
+                    childCount: completedRides.length,
+                  ),
+                ),
+        ],
+      ),
 
-          // ── Bottom nav ────────────────────────────────────────────────
-          bottomNavigationBar: _DriverBottomNav(activeIndex: 1),
-        );
-      },
-    );
-  }
+      bottomNavigationBar: _DriverBottomNav(activeIndex: 1),
     );
   }
 
@@ -719,22 +749,23 @@ class _EarningsCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: theme.primary, size: 18),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: trendColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  trend,
-                  style: GoogleFonts.inter(
-                    color: trendColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+              if (trend.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: trendColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    trend,
+                    style: GoogleFonts.inter(
+                      color: trendColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),

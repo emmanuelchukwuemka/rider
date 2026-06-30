@@ -15,7 +15,7 @@ class HexStatCardWidget extends StatefulWidget {
     String? label,
     String? value,
   })  : this.label = label ?? 'Trips',
-        this.value = value ?? '12';
+        this.value = value ?? '—';
 
   final Widget? icon;
   final String label;
@@ -75,7 +75,7 @@ class _HexStatCardWidgetState extends State<HexStatCardWidget> {
                 Text(
                   valueOrDefault<String>(
                     widget!.value,
-                    '12',
+                    '—',
                   ),
                   style: FlutterFlowTheme.of(context).titleMedium.override(
                         font: GoogleFonts.inter(

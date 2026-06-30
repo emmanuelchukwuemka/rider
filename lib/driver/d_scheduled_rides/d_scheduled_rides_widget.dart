@@ -1,5 +1,7 @@
 import '/backend/backend.dart';
 import '/backend/schema/structs/index.dart';
+import '/backend/api_service.dart';
+import '/auth/custom_auth/auth_util.dart';
 import '/components/scheduled_ride_card_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -31,12 +33,54 @@ class _DScheduledRidesWidgetState extends State<DScheduledRidesWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => DScheduledRidesModel());
+    _loadScheduledRides();
+  }
+
+  Future<void> _acceptScheduledRide(String rideId) async {
+    final ok = await updateRideStatus(rideId, 'accept',
+        {'driver_ref': currentUserUid ?? ''});
+    if (!mounted) return;
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ride accepted! You will be notified when it starts.')),
+      );
+      _loadScheduledRides();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to accept ride. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _loadScheduledRides() async {
+    if (!mounted) return;
+    setState(() => _model.isLoading = true);
+    final rides = await fetchScheduledRides(status: 'pending');
+    if (!mounted) return;
+    final structs = rides.map((r) {
+      DateTime? scheduledTime;
+      final rawTime = r['scheduled_time'] ?? r['scheduledTime'];
+      if (rawTime != null) scheduledTime = DateTime.tryParse(rawTime.toString());
+      return RideModelStruct(
+        rideId: r['id']?.toString() ?? '',
+        pickupAddress: r['pickup_address']?.toString() ?? '',
+        dropoffAddress: r['dropoff_address']?.toString() ?? '',
+        estimatedFare: double.tryParse(r['estimated_fare']?.toString() ?? '0') ?? 0,
+        scheduledTime: scheduledTime,
+        status: r['status']?.toString() ?? 'Pending',
+        passengerName: r['passenger_name']?.toString() ?? '',
+        passengerPhone: r['passenger_phone']?.toString() ?? '',
+      );
+    }).toList();
+    setState(() {
+      _model.scheduledRides = structs;
+      _model.isLoading = false;
+    });
   }
 
   @override
   void dispose() {
     _model.dispose();
-
     super.dispose();
   }
 
@@ -88,23 +132,18 @@ class _DScheduledRidesWidgetState extends State<DScheduledRidesWidget> {
                                       FlutterFlowTheme.of(context).primaryText,
                                   size: 24.0,
                                 ),
-                                onPressed: () {
-                                  print('IconButton pressed ...');
-                                },
+                                onPressed: () => context.safePop(),
                               ),
                               FlutterFlowIconButton(
                                 borderRadius: 8.0,
                                 buttonSize: 40.0,
                                 fillColor: Colors.transparent,
                                 icon: Icon(
-                                  Icons.tune_rounded,
-                                  color:
-                                      FlutterFlowTheme.of(context).primaryText,
+                                  Icons.refresh_rounded,
+                                  color: FlutterFlowTheme.of(context).primaryText,
                                   size: 24.0,
                                 ),
-                                onPressed: () {
-                                  print('IconButton pressed ...');
-                                },
+                                onPressed: _loadScheduledRides,
                               ),
                             ],
                           ),
@@ -186,27 +225,69 @@ class _DScheduledRidesWidgetState extends State<DScheduledRidesWidget> {
                         child: Container(
                           child: Builder(
                             builder: (context) {
-                              final scheduleride =
-                                  _model.scheduledRides.map((e) => e).toList();
-
+                              if (_model.isLoading) {
+                                return Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(40.0),
+                                    child: CircularProgressIndicator(
+                                      color: FlutterFlowTheme.of(context).primary,
+                                    ),
+                                  ),
+                                );
+                              }
+                              if (_model.scheduledRides.isEmpty) {
+                                return Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(40.0),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.calendar_today_outlined,
+                                            size: 48,
+                                            color: FlutterFlowTheme.of(context).secondaryText),
+                                        const SizedBox(height: 16),
+                                        Text('No scheduled rides yet',
+                                            style: FlutterFlowTheme.of(context).titleMedium.override(
+                                                  font: GoogleFonts.inter(),
+                                                  color: FlutterFlowTheme.of(context).primaryText,
+                                                )),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Passengers\' scheduled rides will appear here',
+                                          textAlign: TextAlign.center,
+                                          style: FlutterFlowTheme.of(context).bodySmall.override(
+                                                font: GoogleFonts.inter(),
+                                                color: FlutterFlowTheme.of(context).secondaryText,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
                               return Column(
                                 mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: List.generate(scheduleride.length,
-                                    (schedulerideIndex) {
-                                  final schedulerideItem =
-                                      scheduleride[schedulerideIndex];
+                                children: List.generate(_model.scheduledRides.length, (i) {
+                                  final ride = _model.scheduledRides[i];
                                   return ScheduledRideCardWidget(
-                                    key: Key(
-                                        'Key26r_${schedulerideIndex}_of_${scheduleride.length}'),
-                                    dateTime: 'Today, 04:30 PM',
-                                    destination:
-                                        'Murtala Muhammed Airport (LOS)',
-                                    fare: '8,500',
-                                    pickup: 'Lagos City Mall, Onikan',
+                                    key: Key('scheduled_$i'),
+                                    dateTime: ride.scheduledTime != null
+                                        ? dateTimeFormat('MMM d, h:mm a', ride.scheduledTime)
+                                        : '—',
+                                    destination: ride.dropoffAddress.isNotEmpty ? ride.dropoffAddress : '—',
+                                    fare: ride.estimatedFare > 0
+                                        ? '₦${ride.estimatedFare.toStringAsFixed(0)}'
+                                        : '—',
+                                    pickup: ride.pickupAddress.isNotEmpty ? ride.pickupAddress : '—',
+                                    status: ride.status,
+                                    rideId: ride.rideId,
+                                    onAccept: ride.rideId.isNotEmpty
+                                        ? () => _acceptScheduledRide(ride.rideId)
+                                        : null,
                                   );
-                                }).divide(SizedBox(height: 16.0)),
+                                }).divide(const SizedBox(height: 16.0)),
                               );
                             },
                           ),

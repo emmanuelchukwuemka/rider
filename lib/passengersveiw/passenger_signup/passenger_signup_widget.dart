@@ -7,7 +7,6 @@ import '/flutter_flow/flutter_flow_widgets.dart';
 import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_service.dart';
 import 'dart:ui';
-import '/driver/driver_document_upload1/driver_document_upload1_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -485,7 +484,8 @@ class _PassengerSignupWidgetState extends State<PassengerSignupWidget> {
                     final result = await userSignup(email, phone, name, pass1);
                     if (result != null && result['token'] != null) {
                       final userId = result['user']?['id'] ?? result['accountId'] ?? '';
-                      await saveAuthData(result['token'], userId, email);
+                      final savedName = result['user']?['display_name']?.toString() ?? result['user']?['name']?.toString() ?? name;
+                      await saveAuthData(result['token'], userId, email, displayName: savedName, phoneNumber: phone);
                       await getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0));
                       context.pushNamed('PassengersDashboardnew');
                     } else {
@@ -544,26 +544,39 @@ class _PassengerSignupWidgetState extends State<PassengerSignupWidget> {
                 FFButtonWidget(
                   onPressed: () async {
                     try {
-                      final GoogleSignIn googleSignIn = GoogleSignIn();
-                      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-                      if (googleUser != null) {
-                        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-                        if (googleAuth.idToken != null) {
-                          final result = await googleLogin(googleAuth.idToken!);
-                          if (result != null && result['token'] != null) {
-                            await saveAuthData(result['token'], result['user']['id'] ?? '', googleUser.email);
-                            await getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0));
-                            context.pushNamed('PassengersDashboardnew');
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(result?['error'] ?? 'Google Login failed.')),
-                            );
-                          }
-                        }
+                      final googleSignIn = GoogleSignIn(
+                        serverClientId: '1030140401902-a49fkqor2osrda84blak1eohmlebpaul.apps.googleusercontent.com',
+                        scopes: ['email', 'profile'],
+                      );
+                      final googleUser = await googleSignIn.signIn();
+                      if (googleUser == null) return; // user cancelled
+                      final googleAuth = await googleUser.authentication;
+                      final idToken = googleAuth.idToken;
+                      if (idToken == null) {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not get Google token. Make sure SHA-1 is in Firebase console.')),
+                        );
+                        return;
+                      }
+                      final result = await googleLogin(
+                        idToken,
+                        displayName: googleUser.displayName,
+                      );
+                      if (result != null && result['token'] != null) {
+                        final user = result['user'] as Map<String, dynamic>? ?? {};
+                        final uid = user['id']?.toString() ?? user['uid']?.toString() ?? '';
+                        final gName = user['display_name']?.toString() ?? googleUser.displayName ?? '';
+                        await saveAuthData(result['token'], uid, googleUser.email, displayName: gName);
+                        await getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0));
+                        if (mounted) context.pushNamed('PassengersDashboardnew');
+                      } else {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(result?['error']?.toString() ?? 'Google sign-in failed.')),
+                        );
                       }
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Google error: $e'), duration: const Duration(seconds: 8)),
                       );
                     }
                   },

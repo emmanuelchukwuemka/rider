@@ -1,3 +1,4 @@
+import '/backend/api_service.dart';
 import '/components/button2/button2_widget.dart';
 import '/components/text_field2/text_field2_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -27,6 +28,7 @@ class _DriverForgotPassword004WidgetState
   late DriverForgotPassword004Model _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _sending = false;
 
   @override
   void initState() {
@@ -39,6 +41,75 @@ class _DriverForgotPassword004WidgetState
     _model.dispose();
 
     super.dispose();
+  }
+
+  Future<void> _sendResetOtp() async {
+    final email = _model.textFieldModel.inputTextController?.text.trim() ?? '';
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address.')),
+      );
+      return;
+    }
+    setState(() => _sending = true);
+    try {
+      final result = await requestLoginOtp(email);
+      if (!mounted) return;
+      final debugOtp = result['debug_otp']?.toString();
+      if (debugOtp != null && debugOtp.isNotEmpty) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Your OTP Code'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Email delivery failed. Use this code:'),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue),
+                  ),
+                  child: Text(
+                    debugOtp,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 8,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK, I have it'),
+              ),
+            ],
+          ),
+        );
+      }
+      if (mounted) {
+        context.pushNamed(
+          'DriverResetPassword005',
+          queryParameters: {'email': serializeParam(email, ParamType.String)},
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send OTP: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -81,9 +152,7 @@ class _DriverForgotPassword004WidgetState
                               color: FlutterFlowTheme.of(context).primaryText,
                               size: 20.0,
                             ),
-                            onPressed: () {
-                              print('IconButton pressed ...');
-                            },
+                            onPressed: () => context.safePop(),
                           ),
                         ],
                       ),
@@ -260,19 +329,22 @@ class _DriverForgotPassword004WidgetState
                               ),
                             ),
                           ),
-                          wrapWithModel(
-                            model: _model.buttonModel1,
-                            updateCallback: () => safeSetState(() {}),
-                            child: Button2Widget(
-                              content: 'Send Reset Link',
-                              iconPresent: false,
-                              iconEndPresent: false,
-                              color: FlutterFlowTheme.of(context).secondaryText,
-                              variant: 'primary',
-                              size: 'large',
-                              fullWidth: true,
-                              loading: false,
-                              disabled: false,
+                          GestureDetector(
+                            onTap: _sending ? null : _sendResetOtp,
+                            child: wrapWithModel(
+                              model: _model.buttonModel1,
+                              updateCallback: () => safeSetState(() {}),
+                              child: Button2Widget(
+                                content: _sending ? 'Sending...' : 'Send Reset Link',
+                                iconPresent: false,
+                                iconEndPresent: false,
+                                color: FlutterFlowTheme.of(context).secondaryText,
+                                variant: 'primary',
+                                size: 'large',
+                                fullWidth: true,
+                                loading: _sending,
+                                disabled: _sending,
+                              ),
                             ),
                           ),
                         ].divide(SizedBox(height: 24.0)),
@@ -315,20 +387,23 @@ class _DriverForgotPassword004WidgetState
                                         lineHeight: 1.47,
                                       ),
                                 ),
-                                wrapWithModel(
-                                  model: _model.buttonModel2,
-                                  updateCallback: () => safeSetState(() {}),
-                                  child: Button2Widget(
-                                    content: 'Back to Login',
-                                    iconPresent: false,
-                                    iconEndPresent: false,
-                                    color: FlutterFlowTheme.of(context)
-                                        .secondaryText,
-                                    variant: 'ghost',
-                                    size: 'medium',
-                                    fullWidth: false,
-                                    loading: false,
-                                    disabled: false,
+                                GestureDetector(
+                                  onTap: () => context.safePop(),
+                                  child: wrapWithModel(
+                                    model: _model.buttonModel2,
+                                    updateCallback: () => safeSetState(() {}),
+                                    child: Button2Widget(
+                                      content: 'Back to Login',
+                                      iconPresent: false,
+                                      iconEndPresent: false,
+                                      color: FlutterFlowTheme.of(context)
+                                          .secondaryText,
+                                      variant: 'ghost',
+                                      size: 'medium',
+                                      fullWidth: false,
+                                      loading: false,
+                                      disabled: false,
+                                    ),
                                   ),
                                 ),
                               ].divide(SizedBox(width: 4.0)),

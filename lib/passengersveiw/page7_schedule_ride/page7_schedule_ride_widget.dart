@@ -9,11 +9,9 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/flutter_flow/place.dart';
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
 import '/backend/schema/util/mock_firestore.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_webservice/places.dart';
@@ -44,11 +42,11 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
   LatLng? currentUserLocationValue;
+  TimeOfDay? _selectedTime;
+  bool _isSubmitting = false;
 
   static const String _placesApiKey = 'AIzaSyAMK0gm6FqImxY1oLDQ72UcTuZzybFl7Lw';
-
   String get _apiKey => _placesApiKey;
-
   late GoogleMapsPlaces _places;
 
   @override
@@ -90,6 +88,18 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
     _model.dispose();
     super.dispose();
   }
+
+  double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
+    const R = 6371.0;
+    final dLat = (lat2 - lat1) * pi / 180;
+    final dLon = (lon2 - lon1) * pi / 180;
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * pi / 180) * cos(lat2 * pi / 180) *
+            sin(dLon / 2) * sin(dLon / 2);
+    return R * 2 * atan2(sqrt(a), sqrt(1 - a));
+  }
+
+  double _calculateFare(double distanceKm) => 500 + (distanceKm * 150);
 
   Future<void> _openLocationSearch(bool isPickup) async {
     final theme = FlutterFlowTheme.of(context);
@@ -394,32 +404,67 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
                       'Select Time',
                       style: FlutterFlowTheme.of(context).titleMedium.override(
                             font: GoogleFonts.inter(
-                              fontWeight: FlutterFlowTheme.of(context)
-                                  .titleMedium
-                                  .fontWeight,
-                              fontStyle: FlutterFlowTheme.of(context)
-                                  .titleMedium
-                                  .fontStyle,
+                              fontWeight: FlutterFlowTheme.of(context).titleMedium.fontWeight,
+                              fontStyle: FlutterFlowTheme.of(context).titleMedium.fontStyle,
                             ),
                             color: FlutterFlowTheme.of(context).primaryText,
                             letterSpacing: 0.0,
-                            fontWeight: FlutterFlowTheme.of(context)
-                                .titleMedium
-                                .fontWeight,
-                            fontStyle: FlutterFlowTheme.of(context)
-                                .titleMedium
-                                .fontStyle,
+                            fontWeight: FlutterFlowTheme.of(context).titleMedium.fontWeight,
+                            fontStyle: FlutterFlowTheme.of(context).titleMedium.fontStyle,
                             lineHeight: 1.35,
                           ),
                     ),
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: FlutterFlowTheme.of(context).secondaryBackground,
-                        borderRadius: BorderRadius.circular(16.0),
-                        border: Border.all(
-                          color: FlutterFlowTheme.of(context).alternate,
-                          width: 1.0,
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: _selectedTime ?? TimeOfDay.now(),
+                          builder: (context, child) => MediaQuery(
+                            data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+                            child: child!,
+                          ),
+                        );
+                        if (picked != null && mounted) {
+                          safeSetState(() => _selectedTime = picked);
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                        decoration: BoxDecoration(
+                          color: FlutterFlowTheme.of(context).secondaryBackground,
+                          borderRadius: BorderRadius.circular(12.0),
+                          border: Border.all(
+                            color: _selectedTime != null
+                                ? FlutterFlowTheme.of(context).primary
+                                : FlutterFlowTheme.of(context).alternate,
+                            width: _selectedTime != null ? 2.0 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time_rounded,
+                              color: _selectedTime != null
+                                  ? FlutterFlowTheme.of(context).primary
+                                  : FlutterFlowTheme.of(context).secondaryText,
+                              size: 20.0,
+                            ),
+                            const SizedBox(width: 12.0),
+                            Text(
+                              _selectedTime != null
+                                  ? _selectedTime!.format(context)
+                                  : 'Tap to select time',
+                              style: FlutterFlowTheme.of(context).bodyMedium.override(
+                                    font: GoogleFonts.inter(
+                                      fontWeight: _selectedTime != null ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                    color: _selectedTime != null
+                                        ? FlutterFlowTheme.of(context).primaryText
+                                        : FlutterFlowTheme.of(context).secondaryText,
+                                  ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -452,96 +497,7 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
                                 lineHeight: 1.35,
                               ),
                         ),
-                        InkWell(
-                          splashColor: Colors.transparent,
-                          focusColor: Colors.transparent,
-                          hoverColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                          onTap: () async {
-                            await showModalBottomSheet<bool>(
-                                context: context,
-                                builder: (context) {
-                                  final _datePickedCupertinoTheme =
-                                      CupertinoTheme.of(context);
-                                  return ScrollConfiguration(
-                                    behavior:
-                                        const MaterialScrollBehavior().copyWith(
-                                      dragDevices: {
-                                        PointerDeviceKind.mouse,
-                                        PointerDeviceKind.touch,
-                                        PointerDeviceKind.stylus,
-                                        PointerDeviceKind.unknown
-                                      },
-                                    ),
-                                    child: Container(
-                                      height:
-                                          MediaQuery.of(context).size.height /
-                                              3,
-                                      width: MediaQuery.of(context).size.width,
-                                      color: FlutterFlowTheme.of(context)
-                                          .secondaryBackground,
-                                      child: CupertinoTheme(
-                                        data:
-                                            _datePickedCupertinoTheme.copyWith(
-                                          textTheme: _datePickedCupertinoTheme
-                                              .textTheme
-                                              .copyWith(
-                                            dateTimePickerTextStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .headlineMedium
-                                                    .override(
-                                                      font: GoogleFonts.inter(
-                                                        fontWeight:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .headlineMedium
-                                                                .fontWeight,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .headlineMedium
-                                                                .fontStyle,
-                                                      ),
-                                                      color:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .primaryText,
-                                                      letterSpacing: 0.0,
-                                                      fontWeight:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .headlineMedium
-                                                              .fontWeight,
-                                                      fontStyle:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .headlineMedium
-                                                              .fontStyle,
-                                                    ),
-                                          ),
-                                        ),
-                                        child: CupertinoDatePicker(
-                                          mode: CupertinoDatePickerMode.date,
-                                          minimumDate: (_model.datePicked ??
-                                              DateTime(1900)),
-                                          initialDateTime: getCurrentTimestamp,
-                                          maximumDate: (_model.datePicked ??
-                                              DateTime(2050)),
-                                          backgroundColor:
-                                              FlutterFlowTheme.of(context)
-                                                  .secondaryBackground,
-                                          use24hFormat: false,
-                                          onDateTimeChanged: (newDateTime) =>
-                                              safeSetState(() {
-                                            _model.datePicked = newDateTime;
-                                          }),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                });
-                          },
-                          child: Container(
+                        Container(
                             decoration: BoxDecoration(
                               color: FlutterFlowTheme.of(context)
                                   .secondaryBackground,
@@ -662,7 +618,6 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
                                   ),
                             ),
                           ),
-                        ),
                       ].divide(SizedBox(height: 16.0)),
                     ),
                     Container(
@@ -724,40 +679,91 @@ class _Page7ScheduleRideWidgetState extends State<Page7ScheduleRideWidget> {
                       ),
                     ),
                       FFButtonWidget(
-                        onPressed: () async {
-                          if (_model.datePicked == null || _model.placePickerValue1?.latLng == null || _model.placePickerValue2?.latLng == null) {
+                        onPressed: _isSubmitting ? null : () async {
+                          // Validate all fields
+                          final selectedDate = _model.calendarSelectedDay?.start;
+                          if (selectedDate == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Please select pickup, dropoff and time')),
+                              const SnackBar(content: Text('Please select a date from the calendar')),
                             );
                             return;
                           }
-                          
+                          if (_selectedTime == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please select a time')),
+                            );
+                            return;
+                          }
+                          if (_model.placePickerValue1.latLng == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please select a pickup location')),
+                            );
+                            return;
+                          }
+                          if (_model.placePickerValue2.latLng == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please select a destination')),
+                            );
+                            return;
+                          }
+
+                          // Combine date + time into a single DateTime
+                          final scheduledDateTime = DateTime(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.day,
+                            _selectedTime!.hour,
+                            _selectedTime!.minute,
+                          );
+
+                          if (scheduledDateTime.isBefore(DateTime.now())) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please select a future date and time')),
+                            );
+                            return;
+                          }
+
+                          setState(() => _isSubmitting = true);
+
+                          final pickupLat = _model.placePickerValue1.latLng!.latitude;
+                          final pickupLng = _model.placePickerValue1.latLng!.longitude;
+                          final dropoffLat = _model.placePickerValue2.latLng!.latitude;
+                          final dropoffLng = _model.placePickerValue2.latLng!.longitude;
+                          final distKm = _haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
+                          final estimatedFare = _calculateFare(distKm);
+
                           final rideData = {
                             'passenger_ref': currentUserUid,
-                            'status': 'scheduled',
-                            'payment_method': 'Cash',
-                            'ride_type': 'car',
-                            'requested_at': _model.datePicked?.toIso8601String(),
-                            'pickupLat': _model.placePickerValue1?.latLng?.latitude,
-                            'pickupLng': _model.placePickerValue1?.latLng?.longitude,
-                            'dropoffLat': _model.placePickerValue2?.latLng?.latitude,
-                            'dropoffLng': _model.placePickerValue2?.latLng?.longitude,
+                            'pickup_address': _model.placePickerValue1.address.isNotEmpty
+                                ? _model.placePickerValue1.address
+                                : _model.placePickerValue1.name,
+                            'dropoff_address': _model.placePickerValue2.address.isNotEmpty
+                                ? _model.placePickerValue2.address
+                                : _model.placePickerValue2.name,
+                            'pickup_lat': pickupLat,
+                            'pickup_lng': pickupLng,
+                            'dropoff_lat': dropoffLat,
+                            'dropoff_lng': dropoffLng,
+                            'scheduled_time': scheduledDateTime.toIso8601String(),
+                            'estimated_fare': estimatedFare.toStringAsFixed(0),
                           };
-                          
-                          final response = await requestRide(rideData);
-                          
-                          if (response != null) {
+
+                          final response = await scheduleRide(rideData);
+                          if (!mounted) return;
+                          setState(() => _isSubmitting = false);
+
+                          if (response != null && response['_error'] == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Ride Scheduled Successfully!')),
+                              const SnackBar(content: Text('Ride scheduled successfully!')),
                             );
                             Navigator.pop(context);
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Failed to schedule ride. Please try again.')),
+                              SnackBar(content: Text(response?['_error']?.toString() ?? 'Failed to schedule ride. Please try again.')),
                             );
                           }
                         },
-                      text: 'Schedule Ride',
+                      text: _isSubmitting ? 'Scheduling…' : 'Schedule Ride',
                       options: FFButtonOptions(
                         height: 50.0,
                         padding: EdgeInsetsDirectional.fromSTEB(

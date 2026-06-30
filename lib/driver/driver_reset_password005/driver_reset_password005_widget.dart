@@ -1,3 +1,4 @@
+import '/backend/api_service.dart';
 import '/components/button2/button2_widget.dart';
 import '/components/text_field2/text_field2_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
@@ -12,7 +13,12 @@ import 'driver_reset_password005_model.dart';
 export 'driver_reset_password005_model.dart';
 
 class DriverResetPassword005Widget extends StatefulWidget {
-  const DriverResetPassword005Widget({super.key});
+  const DriverResetPassword005Widget({
+    super.key,
+    required this.email,
+  });
+
+  final String email;
 
   static String routeName = 'DriverResetPassword005';
   static String routePath = '/driverResetPassword005';
@@ -27,6 +33,8 @@ class _DriverResetPassword005WidgetState
   late DriverResetPassword005Model _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  final _otpController = TextEditingController();
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -36,9 +44,60 @@ class _DriverResetPassword005WidgetState
 
   @override
   void dispose() {
+    _otpController.dispose();
     _model.dispose();
-
     super.dispose();
+  }
+
+  Future<void> _updatePassword() async {
+    final otp = _otpController.text.trim();
+    final password =
+        _model.textFieldModel1.inputTextController?.text.trim() ?? '';
+    final confirm =
+        _model.textFieldModel2.inputTextController?.text.trim() ?? '';
+
+    if (otp.isEmpty || password.isEmpty || confirm.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+    if (password != confirm) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match.')),
+      );
+      return;
+    }
+    if (password.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Password must be at least 8 characters.')),
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      await resetDriverPassword(
+        email: widget.email,
+        otp: otp,
+        newPassword: password,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password updated! Please log in.')),
+        );
+        context.goNamed('DriverLogin002');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -66,19 +125,16 @@ class _DriverResetPassword005WidgetState
                   FlutterFlowIconButton(
                     borderRadius: 8.0,
                     buttonSize: 40.0,
-                    fillColor: FlutterFlowTheme.of(context).secondaryBackground,
+                    fillColor:
+                        FlutterFlowTheme.of(context).secondaryBackground,
                     icon: Icon(
                       Icons.arrow_back_rounded,
                       color: FlutterFlowTheme.of(context).primaryText,
                       size: 24.0,
                     ),
-                    onPressed: () {
-                      print('IconButton pressed ...');
-                    },
+                    onPressed: () => context.safePop(),
                   ),
-                  Container(
-                    height: 16.0,
-                  ),
+                  Container(height: 16.0),
                   Row(
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -93,32 +149,30 @@ class _DriverResetPassword005WidgetState
                         child: Padding(
                           padding: EdgeInsetsDirectional.fromSTEB(
                               8.0, 4.0, 8.0, 4.0),
-                          child: Container(
-                            child: Text(
-                              'DRIVER SECURITY',
-                              style: FlutterFlowTheme.of(context)
-                                  .labelSmall
-                                  .override(
-                                    font: GoogleFonts.inter(
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .labelSmall
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .labelSmall
-                                          .fontStyle,
-                                    ),
-                                    color:
-                                        FlutterFlowTheme.of(context).onSurface,
-                                    letterSpacing: 0.0,
+                          child: Text(
+                            'DRIVER SECURITY',
+                            style: FlutterFlowTheme.of(context)
+                                .labelSmall
+                                .override(
+                                  font: GoogleFonts.inter(
                                     fontWeight: FlutterFlowTheme.of(context)
                                         .labelSmall
                                         .fontWeight,
                                     fontStyle: FlutterFlowTheme.of(context)
                                         .labelSmall
                                         .fontStyle,
-                                    lineHeight: 1.2,
                                   ),
-                            ),
+                                  color:
+                                      FlutterFlowTheme.of(context).onSurface,
+                                  letterSpacing: 0.0,
+                                  fontWeight: FlutterFlowTheme.of(context)
+                                      .labelSmall
+                                      .fontWeight,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .labelSmall
+                                      .fontStyle,
+                                  lineHeight: 1.2,
+                                ),
                           ),
                         ),
                       ),
@@ -126,28 +180,30 @@ class _DriverResetPassword005WidgetState
                   ),
                   Text(
                     'Reset Password',
-                    style: FlutterFlowTheme.of(context).headlineLarge.override(
-                          font: GoogleFonts.inter(
-                            fontWeight: FlutterFlowTheme.of(context)
-                                .headlineLarge
-                                .fontWeight,
-                            fontStyle: FlutterFlowTheme.of(context)
-                                .headlineLarge
-                                .fontStyle,
-                          ),
-                          color: FlutterFlowTheme.of(context).primaryText,
-                          letterSpacing: 0.0,
-                          fontWeight: FlutterFlowTheme.of(context)
-                              .headlineLarge
-                              .fontWeight,
-                          fontStyle: FlutterFlowTheme.of(context)
-                              .headlineLarge
-                              .fontStyle,
-                          lineHeight: 1.2,
-                        ),
+                    style:
+                        FlutterFlowTheme.of(context).headlineLarge.override(
+                              font: GoogleFonts.inter(
+                                fontWeight: FlutterFlowTheme.of(context)
+                                    .headlineLarge
+                                    .fontWeight,
+                                fontStyle: FlutterFlowTheme.of(context)
+                                    .headlineLarge
+                                    .fontStyle,
+                              ),
+                              color:
+                                  FlutterFlowTheme.of(context).primaryText,
+                              letterSpacing: 0.0,
+                              fontWeight: FlutterFlowTheme.of(context)
+                                  .headlineLarge
+                                  .fontWeight,
+                              fontStyle: FlutterFlowTheme.of(context)
+                                  .headlineLarge
+                                  .fontStyle,
+                              lineHeight: 1.2,
+                            ),
                   ),
                   Text(
-                    'Secure your driver account with a new strong password.',
+                    'Enter the OTP sent to ${widget.email} and choose a new password.',
                     style: FlutterFlowTheme.of(context).bodyLarge.override(
                           font: GoogleFonts.inter(
                             fontWeight: FlutterFlowTheme.of(context)
@@ -157,12 +213,15 @@ class _DriverResetPassword005WidgetState
                                 .bodyLarge
                                 .fontStyle,
                           ),
-                          color: FlutterFlowTheme.of(context).secondaryText,
+                          color:
+                              FlutterFlowTheme.of(context).secondaryText,
                           letterSpacing: 0.0,
-                          fontWeight:
-                              FlutterFlowTheme.of(context).bodyLarge.fontWeight,
-                          fontStyle:
-                              FlutterFlowTheme.of(context).bodyLarge.fontStyle,
+                          fontWeight: FlutterFlowTheme.of(context)
+                              .bodyLarge
+                              .fontWeight,
+                          fontStyle: FlutterFlowTheme.of(context)
+                              .bodyLarge
+                              .fontStyle,
                           lineHeight: 1.5,
                         ),
                   ),
@@ -173,6 +232,72 @@ class _DriverResetPassword005WidgetState
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // OTP field
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'OTP Code',
+                        style:
+                            FlutterFlowTheme.of(context).labelLarge.override(
+                                  font: GoogleFonts.inter(
+                                    fontWeight: FlutterFlowTheme.of(context)
+                                        .labelLarge
+                                        .fontWeight,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .labelLarge
+                                        .fontStyle,
+                                  ),
+                                  color:
+                                      FlutterFlowTheme.of(context).primaryText,
+                                  letterSpacing: 0.0,
+                                  fontWeight: FlutterFlowTheme.of(context)
+                                      .labelLarge
+                                      .fontWeight,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .labelLarge
+                                      .fontStyle,
+                                  lineHeight: 1.3,
+                                ),
+                      ),
+                      const SizedBox(height: 8.0),
+                      TextField(
+                        controller: _otpController,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        decoration: InputDecoration(
+                          hintText: 'Enter OTP',
+                          counterText: '',
+                          prefixIcon: Icon(
+                            Icons.verified_outlined,
+                            color:
+                                FlutterFlowTheme.of(context).secondaryText,
+                          ),
+                          filled: true,
+                          fillColor:
+                              FlutterFlowTheme.of(context).secondaryBackground,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                                color: FlutterFlowTheme.of(context).alternate),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                                color: FlutterFlowTheme.of(context).alternate),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                                color: FlutterFlowTheme.of(context).primary,
+                                width: 2.0),
+                          ),
+                        ),
+                        style: FlutterFlowTheme.of(context).bodyMedium,
+                      ),
+                    ],
+                  ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -180,25 +305,27 @@ class _DriverResetPassword005WidgetState
                     children: [
                       Text(
                         'New Password',
-                        style: FlutterFlowTheme.of(context).labelLarge.override(
-                              font: GoogleFonts.inter(
-                                fontWeight: FlutterFlowTheme.of(context)
-                                    .labelLarge
-                                    .fontWeight,
-                                fontStyle: FlutterFlowTheme.of(context)
-                                    .labelLarge
-                                    .fontStyle,
-                              ),
-                              color: FlutterFlowTheme.of(context).primaryText,
-                              letterSpacing: 0.0,
-                              fontWeight: FlutterFlowTheme.of(context)
-                                  .labelLarge
-                                  .fontWeight,
-                              fontStyle: FlutterFlowTheme.of(context)
-                                  .labelLarge
-                                  .fontStyle,
-                              lineHeight: 1.3,
-                            ),
+                        style:
+                            FlutterFlowTheme.of(context).labelLarge.override(
+                                  font: GoogleFonts.inter(
+                                    fontWeight: FlutterFlowTheme.of(context)
+                                        .labelLarge
+                                        .fontWeight,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .labelLarge
+                                        .fontStyle,
+                                  ),
+                                  color:
+                                      FlutterFlowTheme.of(context).primaryText,
+                                  letterSpacing: 0.0,
+                                  fontWeight: FlutterFlowTheme.of(context)
+                                      .labelLarge
+                                      .fontWeight,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .labelLarge
+                                      .fontStyle,
+                                  lineHeight: 1.3,
+                                ),
                       ),
                       wrapWithModel(
                         model: _model.textFieldModel1,
@@ -232,25 +359,27 @@ class _DriverResetPassword005WidgetState
                     children: [
                       Text(
                         'Confirm Password',
-                        style: FlutterFlowTheme.of(context).labelLarge.override(
-                              font: GoogleFonts.inter(
-                                fontWeight: FlutterFlowTheme.of(context)
-                                    .labelLarge
-                                    .fontWeight,
-                                fontStyle: FlutterFlowTheme.of(context)
-                                    .labelLarge
-                                    .fontStyle,
-                              ),
-                              color: FlutterFlowTheme.of(context).primaryText,
-                              letterSpacing: 0.0,
-                              fontWeight: FlutterFlowTheme.of(context)
-                                  .labelLarge
-                                  .fontWeight,
-                              fontStyle: FlutterFlowTheme.of(context)
-                                  .labelLarge
-                                  .fontStyle,
-                              lineHeight: 1.3,
-                            ),
+                        style:
+                            FlutterFlowTheme.of(context).labelLarge.override(
+                                  font: GoogleFonts.inter(
+                                    fontWeight: FlutterFlowTheme.of(context)
+                                        .labelLarge
+                                        .fontWeight,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .labelLarge
+                                        .fontStyle,
+                                  ),
+                                  color:
+                                      FlutterFlowTheme.of(context).primaryText,
+                                  letterSpacing: 0.0,
+                                  fontWeight: FlutterFlowTheme.of(context)
+                                      .labelLarge
+                                      .fontWeight,
+                                  fontStyle: FlutterFlowTheme.of(context)
+                                      .labelLarge
+                                      .fontStyle,
+                                  lineHeight: 1.3,
+                                ),
                       ),
                       wrapWithModel(
                         model: _model.textFieldModel2,
@@ -277,22 +406,25 @@ class _DriverResetPassword005WidgetState
                       ),
                     ].divide(SizedBox(height: 8.0)),
                   ),
-                  Container(
-                    height: 16.0,
-                  ),
-                  wrapWithModel(
-                    model: _model.buttonModel,
-                    updateCallback: () => safeSetState(() {}),
-                    child: Button2Widget(
-                      content: 'Update Driver Password',
-                      iconPresent: false,
-                      iconEndPresent: false,
-                      color: FlutterFlowTheme.of(context).secondaryText,
-                      variant: 'primary',
-                      size: 'large',
-                      fullWidth: true,
-                      loading: false,
-                      disabled: false,
+                  Container(height: 16.0),
+                  GestureDetector(
+                    onTap: _submitting ? null : _updatePassword,
+                    child: wrapWithModel(
+                      model: _model.buttonModel,
+                      updateCallback: () => safeSetState(() {}),
+                      child: Button2Widget(
+                        content: _submitting
+                            ? 'Updating...'
+                            : 'Update Driver Password',
+                        iconPresent: false,
+                        iconEndPresent: false,
+                        color: FlutterFlowTheme.of(context).secondaryText,
+                        variant: 'primary',
+                        size: 'large',
+                        fullWidth: true,
+                        loading: _submitting,
+                        disabled: _submitting,
+                      ),
                     ),
                   ),
                 ].divide(SizedBox(height: 24.0)),
@@ -310,185 +442,142 @@ class _DriverResetPassword005WidgetState
                 ),
                 child: Padding(
                   padding: EdgeInsets.all(16.0),
-                  child: Container(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.security_rounded,
-                              color: FlutterFlowTheme.of(context).onSurface,
-                              size: 20.0,
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                'Account Protection',
-                                style: FlutterFlowTheme.of(context)
-                                    .titleMedium
-                                    .override(
-                                      font: GoogleFonts.inter(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .titleMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .titleMedium
-                                            .fontStyle,
-                                      ),
-                                      color: FlutterFlowTheme.of(context)
-                                          .primaryText,
-                                      letterSpacing: 0.0,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.security_rounded,
+                            color: FlutterFlowTheme.of(context).onSurface,
+                            size: 20.0,
+                          ),
+                          Expanded(
+                            flex: 1,
+                            child: Text(
+                              'Account Protection',
+                              style: FlutterFlowTheme.of(context)
+                                  .titleMedium
+                                  .override(
+                                    font: GoogleFonts.inter(
                                       fontWeight: FlutterFlowTheme.of(context)
                                           .titleMedium
                                           .fontWeight,
                                       fontStyle: FlutterFlowTheme.of(context)
                                           .titleMedium
                                           .fontStyle,
-                                      lineHeight: 1.35,
+                                    ),
+                                    color: FlutterFlowTheme.of(context)
+                                        .primaryText,
+                                    letterSpacing: 0.0,
+                                    fontWeight: FlutterFlowTheme.of(context)
+                                        .titleMedium
+                                        .fontWeight,
+                                    fontStyle: FlutterFlowTheme.of(context)
+                                        .titleMedium
+                                        .fontStyle,
+                                    lineHeight: 1.35,
+                                  ),
+                            ),
+                          ),
+                        ].divide(SizedBox(width: 16.0)),
+                      ),
+                      Divider(
+                        height: 16.0,
+                        thickness: 1.0,
+                        color: FlutterFlowTheme.of(context).alternate,
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.max,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.check_circle_outline_rounded,
+                                color: FlutterFlowTheme.of(context).success,
+                                size: 16.0,
+                              ),
+                              Text(
+                                'Minimum 8 characters',
+                                style: FlutterFlowTheme.of(context)
+                                    .bodySmall
+                                    .override(
+                                      font: GoogleFonts.inter(
+                                        fontWeight:
+                                            FlutterFlowTheme.of(context)
+                                                .bodySmall
+                                                .fontWeight,
+                                        fontStyle:
+                                            FlutterFlowTheme.of(context)
+                                                .bodySmall
+                                                .fontStyle,
+                                      ),
+                                      color: FlutterFlowTheme.of(context)
+                                          .secondaryText,
+                                      letterSpacing: 0.0,
+                                      fontWeight: FlutterFlowTheme.of(context)
+                                          .bodySmall
+                                          .fontWeight,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodySmall
+                                          .fontStyle,
+                                      lineHeight: 1.4,
                                     ),
                               ),
-                            ),
-                          ].divide(SizedBox(width: 16.0)),
-                        ),
-                        Divider(
-                          height: 16.0,
-                          thickness: 1.0,
-                          indent: 0.0,
-                          endIndent: 0.0,
-                          color: FlutterFlowTheme.of(context).alternate,
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.check_circle_outline_rounded,
-                                  color: FlutterFlowTheme.of(context).success,
-                                  size: 16.0,
-                                ),
-                                Text(
-                                  'Minimum 8 characters',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodySmall
-                                      .override(
-                                        font: GoogleFonts.inter(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodySmall
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodySmall
-                                                  .fontStyle,
-                                        ),
-                                        color: FlutterFlowTheme.of(context)
-                                            .secondaryText,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodySmall
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodySmall
-                                            .fontStyle,
-                                        lineHeight: 1.4,
+                            ].divide(SizedBox(width: 8.0)),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.max,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
+                                color: FlutterFlowTheme.of(context).onSurface,
+                                size: 16.0,
+                              ),
+                              Text(
+                                'Avoid using your plate number',
+                                style: FlutterFlowTheme.of(context)
+                                    .bodySmall
+                                    .override(
+                                      font: GoogleFonts.inter(
+                                        fontWeight:
+                                            FlutterFlowTheme.of(context)
+                                                .bodySmall
+                                                .fontWeight,
+                                        fontStyle:
+                                            FlutterFlowTheme.of(context)
+                                                .bodySmall
+                                                .fontStyle,
                                       ),
-                                ),
-                              ].divide(SizedBox(width: 8.0)),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.check_circle_outline_rounded,
-                                  color: FlutterFlowTheme.of(context).success,
-                                  size: 16.0,
-                                ),
-                                Text(
-                                  'Includes numbers & symbols',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodySmall
-                                      .override(
-                                        font: GoogleFonts.inter(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodySmall
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodySmall
-                                                  .fontStyle,
-                                        ),
-                                        color: FlutterFlowTheme.of(context)
-                                            .secondaryText,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodySmall
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodySmall
-                                            .fontStyle,
-                                        lineHeight: 1.4,
-                                      ),
-                                ),
-                              ].divide(SizedBox(width: 8.0)),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.info_outline_rounded,
-                                  color: FlutterFlowTheme.of(context).onSurface,
-                                  size: 16.0,
-                                ),
-                                Text(
-                                  'Avoid using your plate number',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodySmall
-                                      .override(
-                                        font: GoogleFonts.inter(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodySmall
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodySmall
-                                                  .fontStyle,
-                                        ),
-                                        color: FlutterFlowTheme.of(context)
-                                            .onSurface,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodySmall
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodySmall
-                                            .fontStyle,
-                                        lineHeight: 1.4,
-                                      ),
-                                ),
-                              ].divide(SizedBox(width: 8.0)),
-                            ),
-                          ].divide(SizedBox(height: 8.0)),
-                        ),
-                      ].divide(SizedBox(height: 16.0)),
-                    ),
+                                      color:
+                                          FlutterFlowTheme.of(context).onSurface,
+                                      letterSpacing: 0.0,
+                                      fontWeight: FlutterFlowTheme.of(context)
+                                          .bodySmall
+                                          .fontWeight,
+                                      fontStyle: FlutterFlowTheme.of(context)
+                                          .bodySmall
+                                          .fontStyle,
+                                      lineHeight: 1.4,
+                                    ),
+                              ),
+                            ].divide(SizedBox(width: 8.0)),
+                          ),
+                        ].divide(SizedBox(height: 8.0)),
+                      ),
+                    ].divide(SizedBox(height: 16.0)),
                   ),
                 ),
               ),

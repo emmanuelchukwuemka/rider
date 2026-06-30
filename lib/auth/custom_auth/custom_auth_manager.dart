@@ -44,7 +44,17 @@ Future<void> loadAuthData() async {
   if (isLoggedIn) {
     final uid = prefs.getString('uid') ?? '';
     final email = prefs.getString('email') ?? '';
-    currentUser = QuickDropCustomUser(loggedIn: true, uid: uid, email: email);
+    final displayName = prefs.getString('displayName');
+    final phoneNumber = prefs.getString('phoneNumber');
+    final user = QuickDropCustomUser(
+      loggedIn: true,
+      uid: uid,
+      email: email,
+      displayName: displayName,
+      phoneNumber: phoneNumber,
+    );
+    currentUser = user;
+    quickDropAuthSubject.add(user);
   }
 }
 Stream<String> get jwtTokenStream => const Stream.empty();

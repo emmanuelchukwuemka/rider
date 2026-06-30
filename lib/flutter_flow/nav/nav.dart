@@ -170,12 +170,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: Page12TripInProgressWidget.routeName,
           path: Page12TripInProgressWidget.routePath,
-          builder: (context, params) => Page12TripInProgressWidget(),
+          builder: (context, params) => Page12TripInProgressWidget(
+              rideId: params.getParam('rideId', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: Page14RatingScreenWidget.routeName,
           path: Page14RatingScreenWidget.routePath,
-          builder: (context, params) => Page14RatingScreenWidget(),
+          builder: (context, params) => Page14RatingScreenWidget(
+              rideId: params.getParam('rideId', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: Page15PassengerProfileWidget.routeName,
@@ -190,16 +192,16 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: ResetPasswordWidget.routeName,
           path: ResetPasswordWidget.routePath,
-          builder: (context, params) => ResetPasswordWidget(),
+          builder: (context, params) => ResetPasswordWidget(
+              email: params.getParam('email', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: Page10SearchingforDriverrWidget.routeName,
           path: Page10SearchingforDriverrWidget.routePath,
           builder: (context, params) => Page10SearchingforDriverrWidget(
-            rideId: params.getParam(
-              'rideId',
-              ParamType.String,
-            ) ?? '',
+            rideId: params.getParam('rideId', ParamType.String) ?? '',
+            pickupAddress: params.getParam('pickupAddress', ParamType.String) ?? '',
+            fare: params.getParam('fare', ParamType.double) ?? 0.0,
           ),
         ),
         FFRoute(
@@ -255,10 +257,23 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => PScheduleRideWidget(),
         ),
         FFRoute(
+          name: PMyScheduledRidesWidget.routeName,
+          path: PMyScheduledRidesWidget.routePath,
+          builder: (context, params) => const PMyScheduledRidesWidget(),
+        ),
+        FFRoute(
           name: PConfirmRideWidget.routeName,
           path: PConfirmRideWidget.routePath,
           builder: (context, params) => PConfirmRideWidget(
             rideId: params.getParam('rideId', ParamType.String) ?? '',
+            pickupLat: params.getParam('pickupLat', ParamType.double) ?? 0.0,
+            pickupLng: params.getParam('pickupLng', ParamType.double) ?? 0.0,
+            dropoffLat: params.getParam('dropoffLat', ParamType.double) ?? 0.0,
+            dropoffLng: params.getParam('dropoffLng', ParamType.double) ?? 0.0,
+            pickupAddress: params.getParam('pickupAddress', ParamType.String) ?? '',
+            dropoffAddress: params.getParam('dropoffAddress', ParamType.String) ?? '',
+            fare: params.getParam('fare', ParamType.double) ?? 0.0,
+            distanceKm: params.getParam('distanceKm', ParamType.double) ?? 0.0,
           ),
         ),
         FFRoute(
@@ -274,12 +289,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: PTripInProgressWidget.routeName,
           path: PTripInProgressWidget.routePath,
-          builder: (context, params) => PTripInProgressWidget(),
+          builder: (context, params) => PTripInProgressWidget(
+              rideId: params.getParam('rideId', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: PRatingWidget.routeName,
           path: PRatingWidget.routePath,
-          builder: (context, params) => PRatingWidget(),
+          builder: (context, params) => PRatingWidget(
+              rideId: params.getParam('rideId', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: PProfileWidget.routeName,
@@ -324,7 +341,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: DriverResetPassword005Widget.routeName,
           path: DriverResetPassword005Widget.routePath,
-          builder: (context, params) => DriverResetPassword005Widget(),
+          builder: (context, params) => DriverResetPassword005Widget(
+              email: params.getParam('email', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: DriverVerifyCode003Widget.routeName,
@@ -359,27 +377,37 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: NavigateToPassenger8Widget.routeName,
           path: NavigateToPassenger8Widget.routePath,
-          builder: (context, params) => NavigateToPassenger8Widget(),
+          builder: (context, params) => NavigateToPassenger8Widget(
+            rideId: params.getParam('rideId', ParamType.String) ?? '',
+          ),
         ),
         FFRoute(
           name: ArrivedAtPickup9Widget.routeName,
           path: ArrivedAtPickup9Widget.routePath,
-          builder: (context, params) => ArrivedAtPickup9Widget(),
+          builder: (context, params) => ArrivedAtPickup9Widget(
+            rideId: params.getParam('rideId', ParamType.String) ?? '',
+          ),
         ),
         FFRoute(
           name: TripInProgress10Widget.routeName,
           path: TripInProgress10Widget.routePath,
-          builder: (context, params) => TripInProgress10Widget(),
+          builder: (context, params) => TripInProgress10Widget(
+              rideId: params.getParam('rideId', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: TripSummary11Widget.routeName,
           path: TripSummary11Widget.routePath,
-          builder: (context, params) => TripSummary11Widget(),
+          builder: (context, params) => TripSummary11Widget(
+            rideId: params.getParam('rideId', ParamType.String) ?? '',
+            fare: params.getParam('fare', ParamType.double) ?? 0.0,
+          ),
         ),
         FFRoute(
           name: DriverDocumentUpload1Widget.routeName,
           path: DriverDocumentUpload1Widget.routePath,
-          builder: (context, params) => DriverDocumentUpload1Widget(),
+          builder: (context, params) => DriverDocumentUpload1Widget(
+            nextRoute: params.getParam('nextRoute', ParamType.String) ?? '',
+          ),
         ),
         FFRoute(
           name: SplashScreenWidget.routeName,
@@ -399,17 +427,20 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: PDriverOnTheWayWidget.routeName,
           path: PDriverOnTheWayWidget.routePath,
-          builder: (context, params) => PDriverOnTheWayWidget(),
+          builder: (context, params) => PDriverOnTheWayWidget(
+              rideId: params.getParam('rideId', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: PDriverArrivedWidget.routeName,
           path: PDriverArrivedWidget.routePath,
-          builder: (context, params) => PDriverArrivedWidget(),
+          builder: (context, params) => PDriverArrivedWidget(
+              rideId: params.getParam('rideId', ParamType.String) ?? ''),
         ),
         FFRoute(
           name: PTripCompleteWidget.routeName,
           path: PTripCompleteWidget.routePath,
-          builder: (context, params) => PTripCompleteWidget(),
+          builder: (context, params) => PTripCompleteWidget(
+              rideId: params.getParam('rideId', ParamType.String) ?? ''),
         ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

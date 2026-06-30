@@ -1,17 +1,14 @@
+import 'dart:async';
+import 'dart:ui';
 import '/components/location_node_widget.dart';
 import '/flutter_flow/flutter_flow_google_map.dart';
-import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
-import '/pages/button/button_widget.dart';
 import '/pages/hex_stat_cell/hex_stat_cell_widget.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
-import 'package:provider/provider.dart';
 import '/backend/api_service.dart';
+import '/backend/socket_service.dart';
 import '/auth/custom_auth/auth_util.dart';
 import 'incoming_riderequest7_model.dart';
 export 'incoming_riderequest7_model.dart';
@@ -35,50 +32,188 @@ class IncomingRiderequest7Widget extends StatefulWidget {
 class _IncomingRiderequest7WidgetState
     extends State<IncomingRiderequest7Widget> {
   late IncomingRiderequest7Model _model;
-
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  LatLng? _currentLocation;
+  Map<String, dynamic>? _rideData;
+  bool _isAccepting = false;
+  int _countdown = 60;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => IncomingRiderequest7Model());
+
+    // Get driver's real GPS location
+    getCurrentUserLocation(defaultLocation: const LatLng(6.5244, 3.3792), cached: false)
+        .then((loc) {
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = loc;
+        _model.mapGoogleMapsCenter = loc;
+      });
+    });
+
+    // Fetch real ride data and check it hasn't already been cancelled
+    fetchRideById(widget.rideId).then((data) {
+      if (!mounted || data == null) return;
+      final ride = data['ride'] ?? data;
+      final status = ride['status']?.toString().toLowerCase() ?? '';
+      // Dismiss immediately if ride was cancelled before we loaded
+      if (status == 'cancelled' || status == 'accepted') {
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
+      setState(() => _rideData = ride);
+
+      // Center map on pickup location if available
+      final pickupLat = _parseDouble(ride['pickupLat'] ?? ride['pickup_lat']);
+      final pickupLng = _parseDouble(ride['pickupLng'] ?? ride['pickup_lng']);
+      if (pickupLat != null && pickupLng != null && mounted) {
+        setState(() => _model.mapGoogleMapsCenter = LatLng(pickupLat, pickupLng));
+      }
+    });
+
+    // Dismiss if passenger cancels while this screen is open
+    SocketService().onRideCancelled = (data) {
+      final cancelledId = data?['rideId']?.toString() ?? '';
+      if (cancelledId == widget.rideId && mounted) {
+        _timer?.cancel();
+        Navigator.of(context).pop();
+      }
+    };
+
+    // Start 60-second countdown
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      setState(() => _countdown--);
+      if (_countdown <= 0) {
+        t.cancel();
+        // Mark as dismissed so _checkPendingRides won't show it again
+        SocketService().dismissedRideIds.add(widget.rideId);
+        if (mounted) Navigator.of(context).pop();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
+    SocketService().onRideCancelled = null;
     _model.dispose();
-
     super.dispose();
+  }
+
+  double? _parseDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  String _passengerInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    if (parts.isNotEmpty && parts[0].isNotEmpty) return parts[0][0].toUpperCase();
+    return 'P';
+  }
+
+  Future<void> _acceptRide() async {
+    if (_isAccepting) return;
+    _timer?.cancel();
+    setState(() => _isAccepting = true);
+
+    // Try 'accept' first; fall back to 'accepted' if the backend uses that path
+    bool res = await updateRideStatus(widget.rideId, 'accept', {
+      'driver_id': currentUserUid,
+    });
+    if (!res) {
+      res = await updateRideStatus(widget.rideId, 'accepted', {
+        'driver_id': currentUserUid,
+      });
+    }
+
+    if (!mounted) return;
+    setState(() => _isAccepting = false);
+    if (res) {
+      context.pushNamed('NavigateToPassenger8',
+          queryParameters: {'rideId': widget.rideId});
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not accept ride — check your connection and try again.'),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: _acceptRide,
+          ),
+        ),
+      );
+      // Restart the timer so the driver can still decide
+      _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) { t.cancel(); return; }
+        setState(() => _countdown--);
+        if (_countdown <= 0) {
+          t.cancel();
+          if (mounted) Navigator.of(context).pop();
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final ride = _rideData;
+
+    // Passenger info
+    final passengerName = (ride?['passenger']?['display_name']
+                          ?? ride?['passengerName']
+                          ?? ride?['passenger_name']
+                          ?? '')
+        .toString()
+        .trim();
+    final displayName = passengerName.isNotEmpty ? passengerName : 'Passenger';
+    final initials = _passengerInitials(displayName);
+    final passengerRating = (ride?['passenger']?['rating'] ?? ride?['passengerRating'])?.toString() ?? '—';
+
+    // Pickup / destination
+    final pickupAddress  = (ride?['pickupAddress']  ?? ride?['pickup_address']  ?? ride?['from'] ?? '').toString();
+    final dropoffAddress = (ride?['dropoffAddress'] ?? ride?['dropoff_address'] ?? ride?['to']   ?? '').toString();
+
+    // Fare / distance / time
+    final fare     = (ride?['fare'] ?? ride?['estimated_fare'] ?? ride?['price'] ?? 0).toString();
+    final fareText = fare == '0' ? '—' : '₦$fare';
+    final distance = (ride?['distance'] ?? ride?['distanceKm'] ?? '—').toString();
+    final distText = distance == '—' ? '—' : '${distance} km';
+    final estTime  = (ride?['estimatedTime'] ?? ride?['estimated_time'] ?? ride?['duration'] ?? '—').toString();
+    final timeText = estTime == '—' ? '—' : '$estTime mins';
+
+    final mapCenter = _model.mapGoogleMapsCenter ?? _currentLocation ?? const LatLng(6.5244, 3.3792);
+
     return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
-      },
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         key: scaffoldKey,
         resizeToAvoidBottomInset: false,
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+        backgroundColor: theme.primaryBackground,
         body: Stack(
-          alignment: AlignmentDirectional(-1.0, -1.0),
           children: [
-            Container(
+            // ── Full-screen map centred on driver's location ──────────────
+            Positioned.fill(
               child: FlutterFlowGoogleMap(
                 controller: _model.mapGoogleMapsController,
                 onCameraIdle: (latLng) => _model.mapGoogleMapsCenter = latLng,
-                initialLocation: _model.mapGoogleMapsCenter ??=
-                    LatLng(6.5244, 3.3792),
+                initialLocation: mapCenter,
                 markerColor: GoogleMarkerColor.violet,
                 mapType: MapType.normal,
                 style: GoogleMapStyle.standard,
-                initialZoom: 14.0,
+                initialZoom: 15.0,
                 allowInteraction: true,
                 allowZoom: true,
                 showZoomControls: false,
-                showLocation: false,
+                showLocation: true,   // ← shows the driver's GPS blue dot
                 showCompass: false,
                 showMapToolbar: false,
                 showTraffic: false,
@@ -86,118 +221,68 @@ class _IncomingRiderequest7WidgetState
                 mapTakesGesturePreference: false,
               ),
             ),
-            Align(
-              alignment: AlignmentDirectional(0.0, -1.0),
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Container(
-                  alignment: AlignmentDirectional(0.0, -1.0),
+
+            // ── Top badge: Incoming Request + countdown ───────────────────
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12.0),
+                    borderRadius: BorderRadius.circular(12),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(
-                        sigmaX: 10.0,
-                        sigmaY: 10.0,
-                      ),
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                       child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                         decoration: BoxDecoration(
-                          color: FlutterFlowTheme.of(context).surface90,
-                          borderRadius: BorderRadius.circular(12.0),
-                          shape: BoxShape.rectangle,
-                          border: Border.all(
-                            color: FlutterFlowTheme.of(context).alternate,
-                            width: 1.0,
-                          ),
+                          color: theme.primaryBackground.withOpacity(0.88),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.alternate),
                         ),
-                        child: Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
-                              24.0, 16.0, 24.0, 16.0),
-                          child: Container(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Lottie.network(
-                                  'https://dimg.dreamflow.cloud/v1/lottie/success+pulse',
-                                  width: 24.0,
-                                  height: 24.0,
-                                  fit: BoxFit.contain,
-                                  animate: true,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Pulse dot
+                            TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0.6, end: 1.0),
+                              duration: const Duration(milliseconds: 700),
+                              builder: (_, v, child) => Transform.scale(scale: v, child: child),
+                              child: Container(
+                                width: 10, height: 10,
+                                decoration: BoxDecoration(
+                                  color: theme.primary,
+                                  shape: BoxShape.circle,
                                 ),
-                                Text(
-                                  'Incoming Request',
-                                  style: FlutterFlowTheme.of(context)
-                                      .titleMedium
-                                      .override(
-                                        font: GoogleFonts.inter(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .titleMedium
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .titleMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: FlutterFlowTheme.of(context)
-                                            .primaryText,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .titleMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .titleMedium
-                                            .fontStyle,
-                                        lineHeight: 1.35,
-                                      ),
-                                ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: FlutterFlowTheme.of(context).primary,
-                                    borderRadius: BorderRadius.circular(12.0),
-                                    shape: BoxShape.rectangle,
-                                  ),
-                                  child: Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
-                                        8.0, 4.0, 8.0, 4.0),
-                                    child: Container(
-                                      child: Text(
-                                        '15s',
-                                        style: FlutterFlowTheme.of(context)
-                                            .labelLarge
-                                            .override(
-                                              font: GoogleFonts.inter(
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .labelLarge
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .labelLarge
-                                                        .fontStyle,
-                                              ),
-                                              color:
-                                                  FlutterFlowTheme.of(context)
-                                                      .onPrimary,
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .labelLarge
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .labelLarge
-                                                      .fontStyle,
-                                              lineHeight: 1.3,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ].divide(SizedBox(width: 16.0)),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Incoming Request',
+                              style: GoogleFonts.inter(
+                                color: theme.primaryText,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _countdown <= 10 ? const Color(0xFFDC2626) : theme.primary,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${(_countdown ~/ 60).toString().padLeft(2, '0')}:${(_countdown % 60).toString().padLeft(2, '0')}',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -205,425 +290,240 @@ class _IncomingRiderequest7WidgetState
                 ),
               ),
             ),
+
+            // ── Bottom info sheet ─────────────────────────────────────────
             Align(
-              alignment: AlignmentDirectional(0.0, 1.0),
+              alignment: Alignment.bottomCenter,
               child: Container(
                 decoration: BoxDecoration(
-                  color: FlutterFlowTheme.of(context).secondaryBackground,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(12.0),
-                    topRight: Radius.circular(12.0),
-                  ),
-                  shape: BoxShape.rectangle,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      height: 1.0,
-                      decoration: BoxDecoration(
-                        color: FlutterFlowTheme.of(context).alternate,
-                        shape: BoxShape.rectangle,
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.max,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 48.0,
-                                    height: 48.0,
-                                    decoration: BoxDecoration(
-                                      color: FlutterFlowTheme.of(context)
-                                          .primary10,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    alignment: AlignmentDirectional(0.0, 0.0),
-                                    child: Text(
-                                      'JD',
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      style: FlutterFlowTheme.of(context)
-                                          .labelMedium
-                                          .override(
-                                            font: GoogleFonts.inter(
-                                              fontWeight: FontWeight.w600,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .labelMedium
-                                                      .fontStyle,
-                                            ),
-                                            color: FlutterFlowTheme.of(context)
-                                                .primary,
-                                            fontSize: 18.24,
-                                            letterSpacing: 0.0,
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .labelMedium
-                                                    .fontStyle,
-                                            lineHeight: 1.3,
-                                          ),
-                                      overflow: TextOverflow.clip,
-                                    ),
-                                  ),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'John Doe',
-                                        style: FlutterFlowTheme.of(context)
-                                            .titleMedium
-                                            .override(
-                                              font: GoogleFonts.inter(
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .titleMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .titleMedium
-                                                        .fontStyle,
-                                              ),
-                                              color:
-                                                  FlutterFlowTheme.of(context)
-                                                      .primaryText,
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .titleMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .titleMedium
-                                                      .fontStyle,
-                                              lineHeight: 1.35,
-                                            ),
-                                      ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.max,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.start,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.star_rounded,
-                                            color: FlutterFlowTheme.of(context)
-                                                .tertiary,
-                                            size: 16.0,
-                                          ),
-                                          Text(
-                                            '4.8',
-                                            style: FlutterFlowTheme.of(context)
-                                                .labelSmall
-                                                .override(
-                                                  font: GoogleFonts.inter(
-                                                    fontWeight:
-                                                        FlutterFlowTheme.of(
-                                                                context)
-                                                            .labelSmall
-                                                            .fontWeight,
-                                                    fontStyle:
-                                                        FlutterFlowTheme.of(
-                                                                context)
-                                                            .labelSmall
-                                                            .fontStyle,
-                                                  ),
-                                                  color: FlutterFlowTheme.of(
-                                                          context)
-                                                      .secondaryText,
-                                                  letterSpacing: 0.0,
-                                                  fontWeight:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .labelSmall
-                                                          .fontWeight,
-                                                  fontStyle:
-                                                      FlutterFlowTheme.of(
-                                                              context)
-                                                          .labelSmall
-                                                          .fontStyle,
-                                                  lineHeight: 1.2,
-                                                ),
-                                          ),
-                                        ].divide(SizedBox(width: 4.0)),
-                                      ),
-                                    ].divide(SizedBox(height: 4.0)),
-                                  ),
-                                ].divide(SizedBox(width: 16.0)),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    'Estimated Fare',
-                                    style: FlutterFlowTheme.of(context)
-                                        .labelSmall
-                                        .override(
-                                          font: GoogleFonts.inter(
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .labelSmall
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .labelSmall
-                                                    .fontStyle,
-                                          ),
-                                          color: FlutterFlowTheme.of(context)
-                                              .secondaryText,
-                                          letterSpacing: 0.0,
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .labelSmall
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .labelSmall
-                                                  .fontStyle,
-                                          lineHeight: 1.2,
-                                        ),
-                                  ),
-                                  Text(
-                                    '₦3,500',
-                                    style: FlutterFlowTheme.of(context)
-                                        .headlineMedium
-                                        .override(
-                                          font: GoogleFonts.inter(
-                                            fontWeight: FontWeight.w800,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .headlineMedium
-                                                    .fontStyle,
-                                          ),
-                                          color: FlutterFlowTheme.of(context)
-                                              .primary,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w800,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .headlineMedium
-                                                  .fontStyle,
-                                          lineHeight: 1.25,
-                                        ),
-                                  ),
-                                ].divide(SizedBox(height: 4.0)),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: FlutterFlowTheme.of(context)
-                                  .primaryBackground,
-                              borderRadius: BorderRadius.circular(12.0),
-                              shape: BoxShape.rectangle,
-                              border: Border.all(
-                                color: FlutterFlowTheme.of(context).alternate,
-                                width: 1.0,
-                              ),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Container(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    wrapWithModel(
-                                      model: _model.locationNodeModel1,
-                                      updateCallback: () => safeSetState(() {}),
-                                      child: LocationNodeWidget(
-                                        address:
-                                            '12 Admiralty Way, Lekki Phase 1',
-                                        type: 'Pickup',
-                                        isPickup: true,
-                                      ),
-                                    ),
-                                    wrapWithModel(
-                                      model: _model.locationNodeModel2,
-                                      updateCallback: () => safeSetState(() {}),
-                                      child: LocationNodeWidget(
-                                        address: 'Victoria Island, Lagos',
-                                        type: 'Destination',
-                                        isPickup: false,
-                                      ),
-                                    ),
-                                  ].divide(SizedBox(height: 16.0)),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.max,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                flex: 1,
-                                child: wrapWithModel(
-                                  model: _model.hexStatCellModel1,
-                                  updateCallback: () => safeSetState(() {}),
-                                  child: HexStatCellWidget(
-                                    icon: Icon(
-                                      Icons.help,
-                                      color:
-                                          FlutterFlowTheme.of(context).tertiary,
-                                      size: 18.0,
-                                    ),
-                                    label: 'Distance',
-                                    value: '4.2 km',
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 1,
-                                child: wrapWithModel(
-                                  model: _model.hexStatCellModel2,
-                                  updateCallback: () => safeSetState(() {}),
-                                  child: HexStatCellWidget(
-                                    icon: Icon(
-                                      Icons.schedule_rounded,
-                                      color:
-                                          FlutterFlowTheme.of(context).tertiary,
-                                      size: 18.0,
-                                    ),
-                                    label: 'Est. Time',
-                                    value: '12 mins',
-                                  ),
-                                ),
-                              ),
-                            ].divide(SizedBox(width: 16.0)),
-                          ),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              wrapWithModel(
-                                model: _model.buttonModel1,
-                                updateCallback: () => safeSetState(() {}),
-                                child: InkWell(
-                                  onTap: () async {
-                                    final res = await updateRideStatus(widget.rideId, 'accepted', {
-                                      'driver_id': currentUserUid
-                                    });
-                                    if (res != null) {
-                                      context.pushNamed('NavigateToPassenger8', queryParameters: {
-                                        'rideId': widget.rideId
-                                      });
-                                    } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Failed to accept ride')),
-                                      );
-                                    }
-                                  },
-                                  child: ButtonWidget(
-                                    content: 'Accept Ride',
-                                    icon: Icon(
-                                      Icons.check_circle_rounded,
-                                      color:
-                                          FlutterFlowTheme.of(context).onPrimary,
-                                      size: 16.0,
-                                    ),
-                                    iconPresent: true,
-                                    iconEndPresent: false,
-                                    color: FlutterFlowTheme.of(context)
-                                        .secondaryText,
-                                    variant: 'primary',
-                                    size: 'large',
-                                    fullWidth: true,
-                                    loading: false,
-                                    disabled: false,
-                                  ),
-                                ),
-                              ),
-                              wrapWithModel(
-                                model: _model.buttonModel2,
-                                updateCallback: () => safeSetState(() {}),
-                                child: ButtonWidget(
-                                  content: 'Decline',
-                                  iconPresent: false,
-                                  iconEndPresent: false,
-                                  color: FlutterFlowTheme.of(context).error,
-                                  variant: 'ghost',
-                                  size: 'medium',
-                                  fullWidth: true,
-                                  loading: false,
-                                  disabled: false,
-                                ),
-                              ),
-                            ].divide(SizedBox(height: 16.0)),
-                          ),
-                        ].divide(SizedBox(height: 24.0)),
-                      ),
+                  color: theme.secondaryBackground,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 16,
+                      offset: const Offset(0, -4),
                     ),
                   ],
                 ),
-              ),
-            ),
-            Align(
-              alignment: AlignmentDirectional(1.0, 0.0),
-              child: Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 24.0, 280.0),
-                child: Container(
-                  alignment: AlignmentDirectional(1.0, 0.0),
-                  child: Container(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        FlutterFlowIconButton(
-                          borderRadius: 8.0,
-                          buttonSize: 40.0,
-                          fillColor:
-                              FlutterFlowTheme.of(context).secondaryBackground,
-                          icon: Icon(
-                            Icons.my_location_rounded,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            size: 24.0,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                      24, 20, 24, MediaQuery.of(context).padding.bottom + 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Drag handle
+                      Center(
+                        child: Container(
+                          width: 36, height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: theme.alternate,
+                            borderRadius: BorderRadius.circular(2),
                           ),
-                          onPressed: () {
-                            print('IconButton pressed ...');
-                          },
                         ),
-                        FlutterFlowIconButton(
-                          borderRadius: 8.0,
-                          buttonSize: 40.0,
-                          fillColor:
-                              FlutterFlowTheme.of(context).secondaryBackground,
-                          icon: Icon(
-                            Icons.add_rounded,
-                            color: FlutterFlowTheme.of(context).primaryText,
-                            size: 24.0,
+                      ),
+
+                      // ── Passenger info row ──────────────────────────────
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Avatar
+                          Container(
+                            width: 50, height: 50,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: theme.primary.withOpacity(0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              initials,
+                              style: GoogleFonts.inter(
+                                color: theme.primary,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                          onPressed: () {
-                            print('IconButton pressed ...');
-                          },
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  displayName,
+                                  style: GoogleFonts.inter(
+                                    color: theme.primaryText,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Row(
+                                  children: [
+                                    Icon(Icons.star_rounded,
+                                        color: const Color(0xFFF59E0B), size: 14),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      passengerRating,
+                                      style: GoogleFonts.inter(
+                                        color: theme.secondaryText,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Fare
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Estimated Fare',
+                                style: GoogleFonts.inter(
+                                  color: theme.secondaryText,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                fareText,
+                                style: GoogleFonts.inter(
+                                  color: theme.primary,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ── Pickup / Destination ────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.primaryBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.alternate),
                         ),
-                      ].divide(SizedBox(height: 8.0)),
-                    ),
+                        child: Column(
+                          children: [
+                            LocationNodeWidget(
+                              address: pickupAddress.isNotEmpty
+                                  ? pickupAddress
+                                  : 'Loading pickup…',
+                              type: 'Pickup',
+                              isPickup: true,
+                            ),
+                            const SizedBox(height: 14),
+                            LocationNodeWidget(
+                              address: dropoffAddress.isNotEmpty
+                                  ? dropoffAddress
+                                  : 'Loading destination…',
+                              type: 'Destination',
+                              isPickup: false,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // ── Distance / Time ─────────────────────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: HexStatCellWidget(
+                              icon: Icon(Icons.route_rounded,
+                                  color: theme.primary, size: 18),
+                              label: 'Distance',
+                              value: distText,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: HexStatCellWidget(
+                              icon: Icon(Icons.schedule_rounded,
+                                  color: theme.primary, size: 18),
+                              label: 'Est. Time',
+                              value: timeText,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ── Accept button ───────────────────────────────────
+                      GestureDetector(
+                        onTap: _isAccepting ? null : _acceptRide,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          height: 52,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: _isAccepting
+                                ? theme.primary.withOpacity(0.6)
+                                : theme.primary,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.primary.withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: _isAccepting
+                              ? const SizedBox(
+                                  width: 22, height: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2.5),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded,
+                                        color: Colors.white, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Accept Ride',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── Decline ─────────────────────────────────────────
+                      GestureDetector(
+                        onTap: () {
+                          _timer?.cancel();
+                          SocketService().dismissedRideIds.add(widget.rideId);
+                          Navigator.of(context).pop();
+                        },
+                        child: Container(
+                          height: 44,
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Decline',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFDC2626),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

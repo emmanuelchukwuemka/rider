@@ -11,7 +11,7 @@ import 'dart:io';
 import 'dart:ui';
 import '/index.dart';
 import 'page6_set_destination_widget.dart' show Page6SetDestinationWidget;
-import '/backend/schema/util/mock_firestore.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';

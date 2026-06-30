@@ -107,9 +107,7 @@ class _DriverVerifyCode003WidgetState extends State<DriverVerifyCode003Widget> {
                               color: FlutterFlowTheme.of(context).primaryText,
                               size: 24.0,
                             ),
-                            onPressed: () {
-                              print('IconButton pressed ...');
-                            },
+                            onPressed: () => context.safePop(),
                           ),
                           Container(
                             height: 16.0,

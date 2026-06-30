@@ -1,6 +1,5 @@
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'p_role_selection_model.dart';
@@ -20,8 +19,6 @@ class _PRoleSelectionWidgetState extends State<PRoleSelectionWidget> {
   late PRoleSelectionModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  String _selectedRole = 'passenger'; // 'passenger' or 'driver'
-
   @override
   void initState() {
     super.initState();
@@ -34,8 +31,93 @@ class _PRoleSelectionWidgetState extends State<PRoleSelectionWidget> {
     super.dispose();
   }
 
+  Widget _roleCard({
+    required BuildContext context,
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final theme = FlutterFlowTheme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 22.0),
+        decoration: BoxDecoration(
+          color: theme.secondaryBackground,
+          borderRadius: BorderRadius.circular(16.0),
+          border: Border.all(color: theme.alternate, width: 1.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8.0,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Icon badge
+            Container(
+              width: 52.0,
+              height: 52.0,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, color: iconColor, size: 26.0),
+            ),
+            const SizedBox(width: 16.0),
+
+            // Title + subtitle
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 17.0,
+                      fontWeight: FontWeight.w700,
+                      color: theme.primaryText,
+                    ),
+                  ),
+                  const SizedBox(height: 4.0),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 13.0,
+                      color: theme.secondaryText,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12.0),
+
+            // Chevron
+            Icon(
+              Icons.chevron_right_rounded,
+              color: theme.secondaryText,
+              size: 24.0,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -43,263 +125,102 @@ class _PRoleSelectionWidgetState extends State<PRoleSelectionWidget> {
       },
       child: Scaffold(
         key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+        backgroundColor: theme.primaryBackground,
         body: SafeArea(
           child: Padding(
-            padding: EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Top section: Logo and Welcome
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 80.0,
-                      height: 80.0,
-                      decoration: BoxDecoration(
-                        color: FlutterFlowTheme.of(context).secondaryBackground,
-                        borderRadius: BorderRadius.circular(9999.0),
-                        border: Border.all(
-                          color: FlutterFlowTheme.of(context).primary20 ?? const Color(0xFFE0E3E7),
-                          width: 2.0,
-                        ),
-                      ),
-                      alignment: AlignmentDirectional(0.0, 0.0),
-                      child: Icon(
-                        Icons.taxi_alert_rounded,
-                        color: FlutterFlowTheme.of(context).primary,
-                        size: 40.0,
-                      ),
-                    ),
-                    SizedBox(height: 24.0),
-                    Text(
-                      'Welcome to QuickDrop',
-                      textAlign: TextAlign.center,
-                      style: FlutterFlowTheme.of(context).headlineMedium.override(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8.0),
-                    Text(
-                      'Choose how you want to use the platform today.',
-                      textAlign: TextAlign.center,
-                      style: FlutterFlowTheme.of(context).bodyMedium.override(
-                        fontFamily: 'Inter',
-                        color: FlutterFlowTheme.of(context).secondaryText,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 48.0),
+
+                // Header
+                Text(
+                  'Continue as',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 28.0,
+                    fontWeight: FontWeight.bold,
+                    color: theme.primaryText,
+                  ),
+                ),
+                const SizedBox(height: 8.0),
+                Text(
+                  'Choose how you want to use QuickDrop',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 14.0,
+                    color: theme.secondaryText,
+                    height: 1.5,
+                  ),
                 ),
 
-                // Middle section: Toggle
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: FlutterFlowTheme.of(context).secondaryBackground,
-                        borderRadius: BorderRadius.circular(30.0),
-                        border: Border.all(
-                          color: FlutterFlowTheme.of(context).alternate,
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(4.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedRole = 'passenger';
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(26.0),
-                                child: AnimatedContainer(
-                                  duration: Duration(milliseconds: 200),
-                                  curve: Curves.easeInOut,
-                                  decoration: BoxDecoration(
-                                    color: _selectedRole == 'passenger'
-                                        ? FlutterFlowTheme.of(context).primary
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(26.0),
-                                  ),
-                                  padding: EdgeInsets.symmetric(vertical: 12.0),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.person_pin_circle_rounded,
-                                        color: _selectedRole == 'passenger'
-                                            ? Colors.white
-                                            : FlutterFlowTheme.of(context).secondaryText,
-                                        size: 20.0,
-                                      ),
-                                      SizedBox(width: 8.0),
-                                      Text(
-                                        'Passenger',
-                                        style: FlutterFlowTheme.of(context).titleSmall.override(
-                                          fontFamily: 'Inter',
-                                          color: _selectedRole == 'passenger'
-                                              ? Colors.white
-                                              : FlutterFlowTheme.of(context).secondaryText,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedRole = 'driver';
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(26.0),
-                                child: AnimatedContainer(
-                                  duration: Duration(milliseconds: 200),
-                                  curve: Curves.easeInOut,
-                                  decoration: BoxDecoration(
-                                    color: _selectedRole == 'driver'
-                                        ? FlutterFlowTheme.of(context).primary
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(26.0),
-                                  ),
-                                  padding: EdgeInsets.symmetric(vertical: 12.0),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.time_to_leave_rounded,
-                                        color: _selectedRole == 'driver'
-                                            ? Colors.white
-                                            : FlutterFlowTheme.of(context).secondaryText,
-                                        size: 20.0,
-                                      ),
-                                      SizedBox(width: 8.0),
-                                      Text(
-                                        'Driver',
-                                        style: FlutterFlowTheme.of(context).titleSmall.override(
-                                          fontFamily: 'Inter',
-                                          color: _selectedRole == 'driver'
-                                              ? Colors.white
-                                              : FlutterFlowTheme.of(context).secondaryText,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 32.0),
-                    AnimatedSwitcher(
-                      duration: Duration(milliseconds: 300),
-                      child: Container(
-                        key: ValueKey(_selectedRole),
-                        padding: EdgeInsets.all(24.0),
-                        decoration: BoxDecoration(
-                          color: FlutterFlowTheme.of(context).secondaryBackground,
-                          borderRadius: BorderRadius.circular(16.0),
-                          border: Border.all(
-                            color: FlutterFlowTheme.of(context).alternate,
-                            width: 1.0,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0x0C000000),
-                              blurRadius: 10.0,
-                              offset: Offset(0, 4),
-                            )
-                          ]
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _selectedRole == 'passenger'
-                                  ? 'I want a ride'
-                                  : 'I want to drive',
-                              style: FlutterFlowTheme.of(context).titleLarge.override(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 12.0),
-                            Text(
-                              _selectedRole == 'passenger'
-                                  ? 'Find nearby drivers and get to your destination quickly and safely. Enjoy comfortable rides at your fingertips.'
-                                  : 'Earn money by providing rides. Set your own schedule, be your own boss, and connect with passengers in your city.',
-                              textAlign: TextAlign.center,
-                              style: FlutterFlowTheme.of(context).bodyMedium.override(
-                                fontFamily: 'Inter',
-                                color: FlutterFlowTheme.of(context).secondaryText,
-                                lineHeight: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 48.0),
+
+                // Passenger card
+                _roleCard(
+                  context: context,
+                  icon: Icons.person_pin_circle_rounded,
+                  iconBg: theme.primary.withOpacity(0.12),
+                  iconColor: theme.primary,
+                  title: 'Passenger',
+                  subtitle: 'Request a ride and travel safely within Nigeria',
+                  onTap: () => context.pushNamed('PPhoneLogin'),
                 ),
 
-                // Bottom section: Continue Button
+                const SizedBox(height: 16.0),
+
+                // Driver card
+                _roleCard(
+                  context: context,
+                  icon: Icons.time_to_leave_rounded,
+                  iconBg: const Color(0xFF1A1A2E).withOpacity(0.08),
+                  iconColor: const Color(0xFF1A1A2E),
+                  title: 'Driver',
+                  subtitle:
+                      'Earn money by providing rides on your own schedule',
+                  onTap: () => context.pushNamed('DriverLogin002'),
+                ),
+
+                const Spacer(),
+
+                // Footer
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    FFButtonWidget(
-                      onPressed: () async {
-                        if (_selectedRole == 'passenger') {
-                          context.pushNamed('PPhoneLogin');
-                        } else {
-                          context.pushNamed('DriverLogin002');
-                        }
+                    Text(
+                      'You can switch roles anytime in settings',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 13.0,
+                        color: theme.secondaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 12.0),
+                    GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Visit quickdrop.ng/support for help')),
+                        );
                       },
-                      text: _selectedRole == 'passenger'
-                          ? 'Continue as Passenger'
-                          : 'Continue as Driver',
-                      options: FFButtonOptions(
-                        width: double.infinity,
-                        height: 56.0,
-                        padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0),
-                        iconPadding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0),
-                        color: FlutterFlowTheme.of(context).primary,
-                        textStyle: FlutterFlowTheme.of(context).titleSmall.override(
-                          fontFamily: 'Inter',
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16.0,
-                        ),
-                        elevation: 3.0,
-                        borderSide: BorderSide(
-                          color: Colors.transparent,
-                          width: 1.0,
-                        ),
-                        borderRadius: BorderRadius.circular(28.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.help_outline_rounded,
+                              size: 16.0, color: theme.secondaryText),
+                          const SizedBox(width: 6.0),
+                          Text(
+                            'Need help?',
+                            style: GoogleFonts.inter(
+                              fontSize: 13.0,
+                              color: theme.secondaryText,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(height: 16.0),
-                    Text(
-                      'You can always switch roles later in settings',
-                      style: FlutterFlowTheme.of(context).labelMedium.override(
-                        fontFamily: 'Inter',
-                        color: FlutterFlowTheme.of(context).secondaryText,
-                      ),
-                    ),
+                    const SizedBox(height: 24.0),
                   ],
                 ),
               ],

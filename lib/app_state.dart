@@ -39,7 +39,7 @@ class FFAppState extends ChangeNotifier {
     _selectedLocation = value;
   }
 
-  int _ridePrice = 4500;
+  int _ridePrice = 0;
   int get ridePrice => _ridePrice;
   set ridePrice(int value) {
     _ridePrice = value;

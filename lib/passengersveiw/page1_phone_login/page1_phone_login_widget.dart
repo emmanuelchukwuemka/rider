@@ -29,7 +29,6 @@ class _Page1PhoneLoginWidgetState extends State<Page1PhoneLoginWidget> {
   late Page1PhoneLoginModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _isLoading = false;
   bool _isGoogleLoading = false;
 
   @override
@@ -46,29 +45,19 @@ class _Page1PhoneLoginWidgetState extends State<Page1PhoneLoginWidget> {
 
   Future<void> _sendOtp() async {
     final email = _model.textFieldModel1.inputTextController?.text.trim() ?? '';
-    if (email.isEmpty || !email.contains('@')) {
+    if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address.')),
+        const SnackBar(content: Text('Please enter your email or phone number.')),
       );
       return;
     }
 
-    safeSetState(() => _isLoading = true);
-    final status = await requestLoginOtp(email);
-    safeSetState(() => _isLoading = false);
-
+    // Navigate to OTP entry screen — it auto-sends the code on load
     if (!mounted) return;
-
-    if (status == 'success') {
-      context.pushNamed(
-        'ConfirmPhoneNumberPage',
-        queryParameters: {'email': email},
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to send OTP. Please try again.')),
-      );
-    }
+    context.pushNamed(
+      'ConfirmPhoneNumberPage',
+      queryParameters: {'email': email},
+    );
   }
 
   Future<void> _googleSignIn() async {
@@ -83,7 +72,9 @@ class _Page1PhoneLoginWidgetState extends State<Page1PhoneLoginWidget> {
           if (!mounted) return;
           if (result != null && result['token'] != null) {
             final userId = result['user']?['id'] ?? '';
-            await saveAuthData(result['token'], userId, googleUser.email);
+            final gName = result['user']?['display_name']?.toString() ?? googleUser.displayName ?? '';
+            final gPhone = result['user']?['phone_number']?.toString();
+            await saveAuthData(result['token'], userId, googleUser.email, displayName: gName, phoneNumber: gPhone);
             await getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0));
             context.pushNamed('PassengersDashboardnew');
           } else {
@@ -257,9 +248,7 @@ class _Page1PhoneLoginWidgetState extends State<Page1PhoneLoginWidget> {
                   const SizedBox(height: 20),
 
                   // Send OTP button
-                  _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : InkWell(
+                  InkWell(
                           onTap: _sendOtp,
                           child: wrapWithModel(
                             model: _model.buttonModel3,

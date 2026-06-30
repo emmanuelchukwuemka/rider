@@ -15,7 +15,7 @@ class StatCardWidget extends StatefulWidget {
     String? label,
     String? value,
   })  : this.label = label ?? 'Trips Completed',
-        this.value = value ?? '124';
+        this.value = value ?? '—';
 
   final String label;
   final String value;

@@ -1,18 +1,14 @@
 import '/auth/custom_auth/auth_util.dart';
-import '/backend/backend.dart';
-import '/backend/schema/enums/enums.dart';
-import '/components/passenger_ride_cancellation_widget.dart';
+import '/backend/api_service.dart';
 import '/flutter_flow/flutter_flow_google_map.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import 'dart:async';
 import 'dart:ui';
-import '/backend/schema/util/mock_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import 'package:provider/provider.dart';
 import '/backend/socket_service.dart';
 import 'page10_searchingfor_driverr_model.dart';
 export 'page10_searchingfor_driverr_model.dart';
@@ -21,9 +17,13 @@ class Page10SearchingforDriverrWidget extends StatefulWidget {
   const Page10SearchingforDriverrWidget({
     super.key,
     required this.rideId,
+    this.pickupAddress = '',
+    this.fare = 0.0,
   });
 
   final String rideId;
+  final String pickupAddress;
+  final double fare;
 
   static String routeName = 'Page10SearchingforDriverr';
   static String routePath = '/page10SearchingforDriverr';
@@ -39,20 +39,79 @@ class _Page10SearchingforDriverrWidgetState
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
   LatLng? currentUserLocationValue;
+  Timer? _pollTimer;
+  Timer? _countdownTimer;
+  bool _navigated = false;
+  Map<String, dynamic>? _rideData;
+
+  // 2-minute search window
+  static const int _searchSeconds = 120;
+  int _secondsLeft = _searchSeconds;
+
+  String get _countdownText {
+    final m = _secondsLeft ~/ 60;
+    final s = _secondsLeft % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => Page10SearchingforDriverrModel());
 
-    // Initialize SocketService to listen for driver acceptance
+    fetchRideById(widget.rideId).then((data) {
+      if (data != null && mounted) setState(() => _rideData = data['ride'] ?? data);
+    });
+
     SocketService().initSocket(currentUserUid, 'passenger');
-    
+
     SocketService().onRideAccepted = (data) {
-      if (data != null && data['ride'] != null && data['ride']['_id'] == widget.rideId) {
-        context.pushNamed('PDriverAssigned');
-      }
+      if (!mounted || _navigated) return;
+      _navigated = true;
+      _pollTimer?.cancel();
+      _countdownTimer?.cancel();
+      final rideId = (data != null && data['ride'] != null)
+          ? data['ride']['_id']?.toString() ?? widget.rideId
+          : widget.rideId;
+      context.pushNamed('PDriverOnTheWay',
+          queryParameters: {'rideId': rideId});
     };
+
+    // Fallback poll every 5 s in case socket event was missed
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!mounted || _navigated) return;
+      final ride = await fetchRideById(widget.rideId);
+      if (ride == null || !mounted || _navigated) return;
+      final status = (ride['ride']?['status'] ?? ride['status'])?.toString().toLowerCase() ?? '';
+      if (status == 'accepted' || status == 'in_progress' || status == 'arrived') {
+        _navigated = true;
+        _pollTimer?.cancel();
+        _countdownTimer?.cancel();
+        context.pushNamed('PDriverOnTheWay',
+            queryParameters: {'rideId': widget.rideId});
+      }
+    });
+
+    // Auto-cancel countdown: 2 minutes to find a driver
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!mounted || _navigated) return;
+      setState(() => _secondsLeft--);
+      if (_secondsLeft <= 0) {
+        _countdownTimer?.cancel();
+        _pollTimer?.cancel();
+        _navigated = true;
+        // Cancel ride on backend — it will emit ride_cancelled to all drivers
+        await updateRideStatus(widget.rideId, 'cancel');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No driver found nearby. Please try again.'),
+            duration: Duration(seconds: 4),
+          ),
+        );
+        context.pushNamed('PassengersDashboardnew');
+      }
+    });
 
     getCurrentUserLocation(defaultLocation: LatLng(0.0, 0.0), cached: false)
         .then((loc) => safeSetState(() => currentUserLocationValue = loc));
@@ -61,8 +120,10 @@ class _Page10SearchingforDriverrWidgetState
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
+    _countdownTimer?.cancel();
+    SocketService().onRideAccepted = null;
     _model.dispose();
-
     super.dispose();
   }
 
@@ -244,9 +305,42 @@ class _Page10SearchingforDriverrWidgetState
                         ),
                       ].divide(SizedBox(height: 8.0)),
                     ),
+                    SizedBox(height: 16.0),
+                    // Countdown ring
                     Container(
-                      height: 32.0,
+                      width: 80.0,
+                      height: 80.0,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 80.0,
+                            height: 80.0,
+                            child: CircularProgressIndicator(
+                              value: _secondsLeft / _searchSeconds,
+                              strokeWidth: 5.0,
+                              backgroundColor: FlutterFlowTheme.of(context).alternate,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _secondsLeft > 30
+                                    ? FlutterFlowTheme.of(context).primary
+                                    : _secondsLeft > 10
+                                        ? Colors.orange
+                                        : FlutterFlowTheme.of(context).error,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _countdownText,
+                            style: GoogleFonts.inter(
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.bold,
+                              color: FlutterFlowTheme.of(context).primaryText,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    SizedBox(height: 16.0),
                     Padding(
                       padding:
                           EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 24.0),
@@ -290,7 +384,11 @@ class _Page10SearchingforDriverrWidgetState
                                       Expanded(
                                         flex: 1,
                                         child: Text(
-                                          'Lagos',
+                                          (_rideData?['pickup_address'] as String?)?.isNotEmpty == true
+                                              ? _rideData!['pickup_address'] as String
+                                              : widget.pickupAddress.isNotEmpty
+                                                  ? widget.pickupAddress
+                                                  : '—',
                                           maxLines: 1,
                                           style: FlutterFlowTheme.of(context)
                                               .bodySmall
@@ -355,7 +453,11 @@ class _Page10SearchingforDriverrWidgetState
                                             size: 20.0,
                                           ),
                                           Text(
-                                            'Car',
+                                            (_rideData?['ride_type'] as String?)?.isNotEmpty == true
+                                                ? _rideData!['ride_type'] as String
+                                                : (_rideData?['rideType'] as String?)?.isNotEmpty == true
+                                                    ? _rideData!['rideType'] as String
+                                                    : 'Car',
                                             style: FlutterFlowTheme.of(context)
                                                 .labelLarge
                                                 .override(
@@ -391,7 +493,12 @@ class _Page10SearchingforDriverrWidgetState
                                         ].divide(SizedBox(width: 8.0)),
                                       ),
                                       Text(
-                                        '₦ 2000',
+                                        () {
+                                          final fetched = (_rideData?['fare'] ?? _rideData?['amount']) as num?;
+                                          if (fetched != null && fetched > 0) return '₦ ${fetched.toStringAsFixed(0)}';
+                                          if (widget.fare > 0) return '₦ ${widget.fare.toStringAsFixed(0)}';
+                                          return '—';
+                                        }(),
                                         style: FlutterFlowTheme.of(context)
                                             .titleMedium
                                             .override(
@@ -425,26 +532,37 @@ class _Page10SearchingforDriverrWidgetState
                     ),
                     FFButtonWidget(
                       onPressed: () async {
-                        await showModalBottomSheet(
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          enableDrag: false,
+                        final confirm = await showDialog<bool>(
                           context: context,
-                          builder: (context) {
-                            return GestureDetector(
-                              onTap: () {
-                                FocusScope.of(context).unfocus();
-                                FocusManager.instance.primaryFocus?.unfocus();
-                              },
-                              child: Padding(
-                                padding: MediaQuery.viewInsetsOf(context),
-                                child: PassengerRideCancellationWidget(
-                                  cancelride: null, // Modify backend cancellation to use API later
-                                ),
+                          builder: (ctx) => AlertDialog(
+                            title: Text('Cancel Ride?',
+                                style: FlutterFlowTheme.of(context).titleMedium),
+                            content: Text(
+                                'Are you sure you want to cancel this ride request?',
+                                style: FlutterFlowTheme.of(context).bodyMedium),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: Text('No',
+                                    style: TextStyle(
+                                        color: FlutterFlowTheme.of(context).secondaryText)),
                               ),
-                            );
-                          },
-                        ).then((value) => safeSetState(() {}));
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: Text('Yes, Cancel',
+                                    style: TextStyle(
+                                        color: FlutterFlowTheme.of(context).error)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true && mounted) {
+                          _navigated = true;
+                          _pollTimer?.cancel();
+                          _countdownTimer?.cancel();
+                          await updateRideStatus(widget.rideId, 'cancel');
+                          if (mounted) context.pushNamed('PassengersDashboardnew');
+                        }
                       },
                       text: 'Cancel Request',
                       options: FFButtonOptions(

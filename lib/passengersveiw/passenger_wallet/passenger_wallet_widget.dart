@@ -1,5 +1,5 @@
-import '/backend/backend.dart';
 import '/auth/custom_auth/auth_util.dart';
+import '/backend/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
@@ -20,12 +20,32 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  List<Map<String, dynamic>> _rides = [];
+  double _walletBalance = 0.0;
+  bool _loading = true;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => PassengerWalletModel());
+    _loadData();
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
+  Future<void> _loadData() async {
+    final uid = currentUserUid;
+    if (uid.isEmpty) {
+      setState(() => _loading = false);
+      return;
+    }
+    final results = await Future.wait([fetchUserById(uid), fetchUserRideHistory(uid)]);
+    final user = results[0] as Map<String, dynamic>?;
+    final rides = results[1] as List<Map<String, dynamic>>;
+    if (!mounted) return;
+    setState(() {
+      _walletBalance = (user?['wallet_balance'] ?? user?['walletBalance'] ?? user?['balance'] ?? 0).toDouble();
+      _rides = rides;
+      _loading = false;
+    });
   }
 
   @override
@@ -36,6 +56,12 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final totalSpent = _rides.fold<double>(0.0, (sum, r) {
+      final fare = r['fare'] ?? r['final_fare'] ?? r['price'] ?? 0;
+      return sum + (double.tryParse(fare.toString()) ?? 0.0);
+    });
+    final displayBalance = _walletBalance > 0 ? _walletBalance : totalSpent;
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -45,9 +71,7 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
           backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
           automaticallyImplyLeading: false,
           leading: InkWell(
-            onTap: () async {
-              Navigator.pop(context);
-            },
+            onTap: () => Navigator.pop(context),
             child: Icon(
               Icons.arrow_back_rounded,
               color: FlutterFlowTheme.of(context).primaryText,
@@ -64,7 +88,6 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                   ),
                 ),
           ),
-          actions: [],
           centerTitle: false,
           elevation: 0.0,
         ),
@@ -89,7 +112,7 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Available Balance',
+                          'Wallet Balance',
                           style: FlutterFlowTheme.of(context).bodyMedium.override(
                                 font: GoogleFonts.inter(
                                   color: FlutterFlowTheme.of(context).info,
@@ -99,26 +122,14 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                         ),
                         Padding(
                           padding: EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 16.0),
-                          child: StreamBuilder<List<UsersRecord>>(
-                            stream: queryUsersRecord(),
-                            builder: (context, snapshot) {
-                              final uid = currentUserUid;
-                              final users = snapshot.data ?? [];
-                              final user = users.cast<UsersRecord?>().firstWhere(
-                                (u) => u?.uid == uid || u?.reference.id == uid,
-                                orElse: () => null,
-                              );
-                              final balance = user?.walletBalance ?? 0.0;
-                              return Text(
-                                '₦${balance.toStringAsFixed(2)}',
-                                style: FlutterFlowTheme.of(context).displaySmall.override(
-                                      font: GoogleFonts.inter(
-                                        color: FlutterFlowTheme.of(context).info,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                              );
-                            },
+                          child: Text(
+                            '₦${displayBalance.toStringAsFixed(2)}',
+                            style: FlutterFlowTheme.of(context).displaySmall.override(
+                                  font: GoogleFonts.inter(
+                                    color: FlutterFlowTheme.of(context).info,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                           ),
                         ),
                         Row(
@@ -127,17 +138,15 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                           children: [
                             FFButtonWidget(
                               onPressed: () {
-                                print('Add Funds pressed ...');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Online payment coming soon')),
+                                );
                               },
                               text: 'Add Funds',
-                              icon: Icon(
-                                Icons.add_circle_outline_rounded,
-                                size: 15.0,
-                              ),
+                              icon: Icon(Icons.add_circle_outline_rounded, size: 15.0),
                               options: FFButtonOptions(
                                 height: 40.0,
                                 padding: EdgeInsetsDirectional.fromSTEB(24.0, 0.0, 24.0, 0.0),
-                                iconPadding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                                 color: FlutterFlowTheme.of(context).info,
                                 textStyle: FlutterFlowTheme.of(context).titleSmall.override(
                                       font: GoogleFonts.interTight(
@@ -150,17 +159,15 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                             ),
                             FFButtonWidget(
                               onPressed: () {
-                                print('Withdraw pressed ...');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Withdrawal coming soon')),
+                                );
                               },
                               text: 'Withdraw',
-                              icon: Icon(
-                                Icons.arrow_circle_down_rounded,
-                                size: 15.0,
-                              ),
+                              icon: Icon(Icons.arrow_circle_down_rounded, size: 15.0),
                               options: FFButtonOptions(
                                 height: 40.0,
                                 padding: EdgeInsetsDirectional.fromSTEB(24.0, 0.0, 24.0, 0.0),
-                                iconPadding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
                                 color: Color(0x33FFFFFF),
                                 textStyle: FlutterFlowTheme.of(context).titleSmall.override(
                                       font: GoogleFonts.interTight(
@@ -182,53 +189,48 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                   child: Text(
                     'Recent Transactions',
                     style: FlutterFlowTheme.of(context).titleMedium.override(
-                          font: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          font: GoogleFonts.inter(fontWeight: FontWeight.bold),
                         ),
                   ),
                 ),
                 Expanded(
-                  child: StreamBuilder<List<RideRecord>>(
-                    stream: queryRideRecord(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return Center(
+                  child: _loading
+                      ? Center(
                           child: CircularProgressIndicator(
                             color: FlutterFlowTheme.of(context).primary,
                           ),
-                        );
-                      }
-                      
-                      final rides = snapshot.data!;
-                      if (rides.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'No recent transactions.',
-                            style: FlutterFlowTheme.of(context).bodyMedium,
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: EdgeInsets.zero,
-                        scrollDirection: Axis.vertical,
-                        itemCount: rides.length,
-                        itemBuilder: (context, index) {
-                          final ride = rides[index];
-                          final fare = ride.finalFare;
-                          final formattedTime = dateTimeFormat('MMM d, h:mm a', ride.requestedAt ?? DateTime.now());
-                          return _buildTransactionItem(
-                            context,
-                            'Ride Payment',
-                            formattedTime,
-                            '-₦${fare.toStringAsFixed(0)}',
-                            true,
-                          );
-                        },
-                      );
-                    },
-                  ),
+                        )
+                      : _rides.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No recent transactions.',
+                                style: FlutterFlowTheme.of(context).bodyMedium,
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: _rides.length,
+                              itemBuilder: (context, index) {
+                                final ride = _rides[index];
+                                final fare = ride['fare'] ?? ride['final_fare'] ?? ride['price'] ?? 0;
+                                final fareVal = double.tryParse(fare.toString()) ?? 0.0;
+                                final createdAt = ride['created_at'] ?? ride['requested_at'] ?? '';
+                                String formattedTime = createdAt.toString();
+                                if (createdAt.isNotEmpty) {
+                                  try {
+                                    final dt = DateTime.parse(createdAt.toString());
+                                    formattedTime = dateTimeFormat('MMM d, h:mm a', dt);
+                                  } catch (_) {}
+                                }
+                                return _buildTransactionItem(
+                                  context,
+                                  'Ride Payment',
+                                  formattedTime,
+                                  '-₦${fareVal.toStringAsFixed(0)}',
+                                  true,
+                                );
+                              },
+                            ),
                 ),
               ],
             ),
@@ -282,9 +284,7 @@ class _PassengerWalletWidgetState extends State<PassengerWalletWidget> {
                         Text(
                           title,
                           style: FlutterFlowTheme.of(context).bodyLarge.override(
-                                font: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                font: GoogleFonts.inter(fontWeight: FontWeight.w600),
                               ),
                         ),
                         Padding(

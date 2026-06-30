@@ -1,4 +1,5 @@
 import '/auth/custom_auth/auth_util.dart';
+import '/backend/api_service.dart';
 import '/components/settings_option2_widget.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -7,7 +8,6 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,33 +37,82 @@ class _Page15PassengerProfileWidgetState
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  String? _profileImagePath;
+  String? _profileImagePath;  // local file path (fallback)
+  String? _profileImageUrl;   // server URL (preferred)
+  String _displayName = '';
+  int _tripCount = 0;
+  String _memberYears = '—';
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => Page15PassengerProfileModel());
-    _loadProfileImage();
-
+    _loadAll();
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
   }
 
-  Future<void> _loadProfileImage() async {
+  Future<void> _loadAll() async {
+    final uid = currentUserUid;
+    if (uid.isEmpty) return;
+
+    final results = await Future.wait([
+      fetchUserById(uid),
+      fetchUserRideHistory(uid),
+    ]);
+    final user = results[0] as Map<String, dynamic>?;
+    final rides = results[1] as List<Map<String, dynamic>>;
+
+    // Also save fresh name to SharedPreferences so it persists across sessions
+    final freshName = user?['display_name']?.toString() ??
+        user?['name']?.toString() ??
+        user?['full_name']?.toString() ??
+        currentUserDisplayName;
+    if (freshName.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('displayName', freshName);
+    }
+
+    final serverImageUrl = user?['profile_image']?.toString() ??
+        user?['avatar']?.toString() ??
+        user?['photo_url']?.toString();
+
     final prefs = await SharedPreferences.getInstance();
+    final localPath = prefs.getString('profile_image_path');
+    final createdAt = user?['created_at']?.toString() ?? user?['createdAt']?.toString() ?? prefs.getString('createdAt');
+    String years = '—';
+    if (createdAt != null) {
+      try {
+        final dt = DateTime.parse(createdAt);
+        final diff = DateTime.now().difference(dt).inDays / 365.0;
+        years = diff.toStringAsFixed(1);
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
     setState(() {
-      _profileImagePath = prefs.getString('profile_image_path');
+      _displayName = freshName;
+      _profileImageUrl = (serverImageUrl != null && serverImageUrl.isNotEmpty) ? serverImageUrl : null;
+      _profileImagePath = localPath;
+      _tripCount = rides.length;
+      _memberYears = years;
     });
   }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      final prefs = await SharedPreferences.getInstance();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (image == null) return;
+
+    // Upload to server
+    final url = await uploadProfileImage(image.path);
+    final prefs = await SharedPreferences.getInstance();
+    if (url != null && url.isNotEmpty) {
+      await prefs.setString('profile_image_url', url);
+      if (mounted) setState(() => _profileImageUrl = url);
+    } else {
+      // Fallback: store local path
       await prefs.setString('profile_image_path', image.path);
-      setState(() {
-        _profileImagePath = image.path;
-      });
+      if (mounted) setState(() => _profileImagePath = image.path);
     }
   }
 
@@ -179,64 +228,22 @@ class _Page15PassengerProfileWidgetState
                                   borderRadius: BorderRadius.circular(9999.0),
                                   child: InkWell(
                                     onTap: _pickImage,
-                                    child: _profileImagePath != null
-                                        ? Image.file(
-                                            File(_profileImagePath!),
+                                    child: _profileImageUrl != null
+                                        ? CachedNetworkImage(
+                                            imageUrl: _profileImageUrl!,
                                             width: 102.0,
                                             height: 102.0,
                                             fit: BoxFit.cover,
+                                            errorWidget: (_, __, ___) => _buildInitialAvatar(),
                                           )
-                                        : CachedNetworkImage(
-                                            fadeInDuration: Duration(milliseconds: 0),
-                                            fadeOutDuration: Duration(milliseconds: 0),
-                                            imageUrl: 'https://dimg.dreamflow.cloud/v1/image/portrait%20of%20Chidi%20Obi',
-                                            width: 102.0,
-                                            height: 102.0,
-                                            fit: BoxFit.cover,
-                                          ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Align(
-                              alignment: AlignmentDirectional(1.0, 1.0),
-                              child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(75.0, 75.0, 0.0, 0.0),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: FlutterFlowTheme.of(context).primary,
-                                    borderRadius: BorderRadius.circular(9999.0),
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 2.0,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        blurRadius: 4.0,
-                                        color: Color(0x33000000),
-                                        offset: Offset(0.0, 2.0),
-                                      )
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(8.0, 4.0, 8.0, 4.0),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.star_rounded,
-                                          color: Colors.white,
-                                          size: 14.0,
-                                        ),
-                                        Text(
-                                          '4.9',
-                                          style: FlutterFlowTheme.of(context).labelMedium.override(
-                                            font: GoogleFonts.inter(fontWeight: FontWeight.bold),
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ].divide(SizedBox(width: 4.0)),
-                                    ),
+                                        : _profileImagePath != null
+                                            ? Image.file(
+                                                File(_profileImagePath!),
+                                                width: 102.0,
+                                                height: 102.0,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : _buildInitialAvatar(),
                                   ),
                                 ),
                               ),
@@ -245,23 +252,19 @@ class _Page15PassengerProfileWidgetState
                         ),
                         SizedBox(height: 16.0),
                         // Name and Phone
-                        AuthUserStreamWidget(
-                          builder: (context) => Text(
-                            currentUserDisplayName.isEmpty ? 'Passenger' : currentUserDisplayName,
-                            style: FlutterFlowTheme.of(context).headlineSmall.override(
-                              font: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                              color: FlutterFlowTheme.of(context).primaryText,
-                            ),
+                        Text(
+                          _displayName.isNotEmpty ? _displayName : (currentUserDisplayName.isNotEmpty ? currentUserDisplayName : 'Passenger'),
+                          style: FlutterFlowTheme.of(context).headlineSmall.override(
+                            font: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                            color: FlutterFlowTheme.of(context).primaryText,
                           ),
                         ),
                         SizedBox(height: 4.0),
-                        AuthUserStreamWidget(
-                          builder: (context) => Text(
-                            currentPhoneNumber,
-                            style: FlutterFlowTheme.of(context).bodyMedium.override(
-                              font: GoogleFonts.inter(),
-                              color: FlutterFlowTheme.of(context).secondaryText,
-                            ),
+                        Text(
+                          currentPhoneNumber,
+                          style: FlutterFlowTheme.of(context).bodyMedium.override(
+                            font: GoogleFonts.inter(),
+                            color: FlutterFlowTheme.of(context).secondaryText,
                           ),
                         ),
                         SizedBox(height: 24.0),
@@ -287,19 +290,19 @@ class _Page15PassengerProfileWidgetState
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildStatColumn(context, '142', 'Trips'),
+                                _buildStatColumn(context, '$_tripCount', 'Trips'),
                                 Container(
                                   width: 1.0,
                                   height: 30.0,
                                   color: FlutterFlowTheme.of(context).alternate,
                                 ),
-                                _buildStatColumn(context, '2.5', 'Years'),
+                                _buildStatColumn(context, _memberYears, 'Years'),
                                 Container(
                                   width: 1.0,
                                   height: 30.0,
                                   color: FlutterFlowTheme.of(context).alternate,
                                 ),
-                                _buildStatColumn(context, 'Gold', 'Member', highlight: true),
+                                _buildStatColumn(context, 'Member', 'Status'),
                               ],
                             ),
                           ),
@@ -443,6 +446,21 @@ class _Page15PassengerProfileWidgetState
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildInitialAvatar() {
+    final name = _displayName.isNotEmpty ? _displayName : (currentUserDisplayName.isNotEmpty ? currentUserDisplayName : 'P');
+    final initial = name[0].toUpperCase();
+    return Container(
+      width: 102.0,
+      height: 102.0,
+      color: FlutterFlowTheme.of(context).primary.withOpacity(0.15),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: GoogleFonts.inter(fontSize: 40, fontWeight: FontWeight.bold, color: FlutterFlowTheme.of(context).primary),
       ),
     );
   }

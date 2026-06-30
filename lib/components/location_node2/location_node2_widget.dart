@@ -14,7 +14,7 @@ class LocationNode2Widget extends StatefulWidget {
     String? address,
     String? type,
     bool? isPickup,
-  })  : this.address = address ?? 'Grand Central Terminal, NY',
+  })  : this.address = address ?? '—',
         this.type = type ?? 'Pickup',
         this.isPickup = isPickup ?? true;
 
@@ -129,7 +129,7 @@ class _LocationNode2WidgetState extends State<LocationNode2Widget> {
                     Text(
                       valueOrDefault<String>(
                         widget!.address,
-                        'Grand Central Terminal, NY',
+                        '—',
                       ),
                       maxLines: 2,
                       style: FlutterFlowTheme.of(context).bodyMedium.override(

@@ -314,7 +314,7 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
               Navigator.pop(context);
               await authManagerSignOut();
               if (context.mounted) {
-                context.pushReplacementNamed('SplashScreen');
+                context.go('/');
               }
             },
             child: Text('Sign Out',
@@ -369,7 +369,7 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
         final theme = FlutterFlowTheme.of(context);
         final firstName = driver.displayName.split(' ').first;
         final rating =
-            driver.driverRating?.toStringAsFixed(1) ?? '5.0';
+            driver.driverRating?.toStringAsFixed(1) ?? '—';
         final totalTrips = driver.totalTrips ?? 0;
 
         return GestureDetector(
@@ -560,7 +560,11 @@ class _DriverEditProfileWidgetState extends State<DriverEditProfileWidget> {
                             iconColor: theme.primary,
                             label: 'Vehicle Info',
                             subtitle: 'Manage your vehicle details',
-                            onTap: () {},
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Vehicle info editing coming soon')),
+                              );
+                            },
                           ),
                           _MenuItem(
                             icon: Icons.description_rounded,

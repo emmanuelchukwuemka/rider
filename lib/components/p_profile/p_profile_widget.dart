@@ -65,11 +65,11 @@ class _PProfileWidgetState extends State<PProfileWidget> {
             final driverRecord = driverRecordList.isNotEmpty ? driverRecordList.first : null;
             
             String photoUrl = driverRecord?.photoUrl ?? '';
-            if (photoUrl.isEmpty) {
-              photoUrl = 'https://dimg.dreamflow.cloud/v1/image/friendly%20passenger%20portrait';
-            } else if (!photoUrl.startsWith('http')) {
+            if (photoUrl.isNotEmpty && !photoUrl.startsWith('http')) {
               photoUrl = baseUrl + photoUrl;
             }
+            final driverDisplayName = (driverRecord?.displayName ?? currentUserDisplayName).trim();
+            final profileInitial = driverDisplayName.isNotEmpty ? driverDisplayName[0].toUpperCase() : 'D';
 
             return SingleChildScrollView(
               primary: false,
@@ -118,19 +118,31 @@ class _PProfileWidgetState extends State<PProfileWidget> {
                                       ),
                                       alignment: AlignmentDirectional(0.0, 0.0),
                                       child: ClipRRect(
-                                        borderRadius:
-                                            BorderRadius.circular(50.0),
-                                        child: CachedNetworkImage(
-                                          fadeInDuration:
-                                              Duration(milliseconds: 0),
-                                          fadeOutDuration:
-                                              Duration(milliseconds: 0),
-                                          imageUrl: photoUrl,
-                                          width: 100.0,
-                                          height: 100.0,
-                                          fit: BoxFit.cover,
-                                          alignment: Alignment(0.0, 0.0),
-                                        ),
+                                        borderRadius: BorderRadius.circular(50.0),
+                                        child: photoUrl.isNotEmpty
+                                            ? CachedNetworkImage(
+                                                fadeInDuration: Duration(milliseconds: 0),
+                                                fadeOutDuration: Duration(milliseconds: 0),
+                                                imageUrl: photoUrl,
+                                                width: 100.0,
+                                                height: 100.0,
+                                                fit: BoxFit.cover,
+                                                alignment: Alignment(0.0, 0.0),
+                                              )
+                                            : Container(
+                                                width: 100.0,
+                                                height: 100.0,
+                                                color: FlutterFlowTheme.of(context).primary.withOpacity(0.15),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  profileInitial,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 38,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: FlutterFlowTheme.of(context).primary,
+                                                  ),
+                                                ),
+                                              ),
                                       ),
                                     ),
                                   ),
@@ -173,7 +185,7 @@ class _PProfileWidgetState extends State<PProfileWidget> {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Text(
-                                    driverRecord?.displayName ?? 'Alex Thompson',
+                                    driverRecord?.displayName ?? '',
                                     textAlign: TextAlign.center,
                                     style: FlutterFlowTheme.of(context)
                                         .headlineMedium
@@ -203,7 +215,7 @@ class _PProfileWidgetState extends State<PProfileWidget> {
                                         ),
                                   ),
                                   Text(
-                                    driverRecord?.email ?? 'alex.t@example.com',
+                                    driverRecord?.email ?? '',
                                     textAlign: TextAlign.center,
                                     style: FlutterFlowTheme.of(context)
                                         .bodyMedium
@@ -272,7 +284,7 @@ class _PProfileWidgetState extends State<PProfileWidget> {
                                             CrossAxisAlignment.center,
                                         children: [
                                           Text(
-                                            '4.95',
+                                            driverRecord?.driverRating?.toStringAsFixed(2) ?? '—',
                                             style: FlutterFlowTheme.of(context)
                                                 .titleMedium
                                                 .override(
@@ -370,7 +382,7 @@ class _PProfileWidgetState extends State<PProfileWidget> {
                                             CrossAxisAlignment.center,
                                         children: [
                                           Text(
-                                            '128',
+                                            '${driverRecord?.totalTrips ?? 0}',
                                             style: FlutterFlowTheme.of(context)
                                                 .titleMedium
                                                 .override(
@@ -468,7 +480,9 @@ class _PProfileWidgetState extends State<PProfileWidget> {
                                             CrossAxisAlignment.center,
                                         children: [
                                           Text(
-                                            '3 yrs',
+                                            driverRecord?.createdTime != null
+                                                ? '${(DateTime.now().difference(driverRecord!.createdTime!).inDays / 365).floor()} yrs'
+                                                : '—',
                                             style: FlutterFlowTheme.of(context)
                                                 .titleMedium
                                                 .override(

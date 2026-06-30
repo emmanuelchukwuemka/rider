@@ -4,16 +4,20 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/index.dart';
+import '/backend/socket_service.dart';
+import '/backend/api_service.dart';
 import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'p_driver_arrived_model.dart';
 export 'p_driver_arrived_model.dart';
 
 class PDriverArrivedWidget extends StatefulWidget {
-  const PDriverArrivedWidget({super.key});
+  const PDriverArrivedWidget({super.key, this.rideId = ''});
+
+  final String rideId;
 
   static String routeName = 'PDriverArrived';
   static String routePath = '/pDriverArrived';
@@ -24,17 +28,54 @@ class PDriverArrivedWidget extends StatefulWidget {
 
 class _PDriverArrivedWidgetState extends State<PDriverArrivedWidget> {
   late PDriverArrivedModel _model;
-
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  Map<String, dynamic>? _rideData;
+
+  String get _driverName => (_rideData?['driver_name'] ?? '').toString().trim();
+  String get _driverPhone => (_rideData?['driver_phone'] ?? '').toString().trim();
+  String get _driverInitials {
+    final n = _driverName.isNotEmpty ? _driverName : 'D';
+    final p = n.split(' ');
+    if (p.length >= 2) return '${p[0][0]}${p[1][0]}'.toUpperCase();
+    return n[0].toUpperCase();
+  }
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => PDriverArrivedModel());
+    _loadRide();
+
+    // Auto-navigate when driver starts the trip
+    SocketService().onRideStarted = (data) {
+      if (!mounted) return;
+      context.pushNamed(PTripInProgressWidget.routeName,
+          queryParameters: {
+            'rideId': serializeParam(widget.rideId, ParamType.String)
+          });
+    };
+
+    // Fallback: if driver somehow completes without passenger going through in-progress
+    SocketService().onRideCompleted = (data) {
+      if (!mounted) return;
+      context.pushNamed(PTripCompleteWidget.routeName,
+          queryParameters: {
+            'rideId': serializeParam(widget.rideId, ParamType.String)
+          });
+    };
+  }
+
+  Future<void> _loadRide() async {
+    if (widget.rideId.isNotEmpty) {
+      final data = await fetchRideById(widget.rideId);
+      if (mounted) setState(() => _rideData = data);
+    }
   }
 
   @override
   void dispose() {
+    SocketService().onRideStarted = null;
+    SocketService().onRideCompleted = null;
     _model.dispose();
     super.dispose();
   }
@@ -153,24 +194,24 @@ class _PDriverArrivedWidgetState extends State<PDriverArrivedWidget> {
                         mainAxisSize: MainAxisSize.max,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12.0),
-                            child: Container(
-                              width: 64.0,
-                              height: 64.0,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12.0),
-                                border: Border.all(
-                                  color: FlutterFlowTheme.of(context).primary20,
-                                  width: 2.0,
-                                ),
+                          Container(
+                            width: 64.0,
+                            height: 64.0,
+                            decoration: BoxDecoration(
+                              color: FlutterFlowTheme.of(context).primary.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12.0),
+                              border: Border.all(
+                                color: FlutterFlowTheme.of(context).primary20,
+                                width: 2.0,
                               ),
-                              child: CachedNetworkImage(
-                                fadeInDuration: Duration(milliseconds: 0),
-                                fadeOutDuration: Duration(milliseconds: 0),
-                                imageUrl:
-                                    'https://dimg.dreamflow.cloud/v1/image/professional%20driver%20portrait',
-                                fit: BoxFit.cover,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _driverInitials,
+                              style: GoogleFonts.inter(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: FlutterFlowTheme.of(context).primary,
                               ),
                             ),
                           ),
@@ -180,7 +221,7 @@ class _PDriverArrivedWidgetState extends State<PDriverArrivedWidget> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Samuel Bankole',
+                                  _driverName.isNotEmpty ? _driverName : 'Your Driver',
                                   style: FlutterFlowTheme.of(context)
                                       .titleMedium
                                       .override(
@@ -191,7 +232,7 @@ class _PDriverArrivedWidgetState extends State<PDriverArrivedWidget> {
                                       ),
                                 ),
                                 Text(
-                                  'ABC-123 • Toyota Camry (Silver)',
+                                  'Driver',
                                   style: FlutterFlowTheme.of(context)
                                       .bodySmall
                                       .override(
@@ -219,7 +260,11 @@ class _PDriverArrivedWidgetState extends State<PDriverArrivedWidget> {
                                   color: FlutterFlowTheme.of(context).primary,
                                   size: 20.0,
                                 ),
-                                onPressed: () {},
+                                onPressed: () async {
+                                  if (_driverPhone.isNotEmpty) {
+                                    await launchUrl(Uri(scheme: 'sms', path: _driverPhone));
+                                  }
+                                },
                               ),
                               FlutterFlowIconButton(
                                 borderColor:
@@ -234,7 +279,11 @@ class _PDriverArrivedWidgetState extends State<PDriverArrivedWidget> {
                                   color: FlutterFlowTheme.of(context).primary,
                                   size: 20.0,
                                 ),
-                                onPressed: () {},
+                                onPressed: () async {
+                                  if (_driverPhone.isNotEmpty) {
+                                    await launchUrl(Uri(scheme: 'tel', path: _driverPhone));
+                                  }
+                                },
                               ),
                             ].divide(SizedBox(width: 8.0)),
                           ),
@@ -244,7 +293,11 @@ class _PDriverArrivedWidgetState extends State<PDriverArrivedWidget> {
                         width: double.infinity,
                         child: FFButtonWidget(
                           onPressed: () {
-                            context.pushNamed(PTripInProgressWidget.routeName);
+                            context.pushNamed(PTripInProgressWidget.routeName,
+                                queryParameters: {
+                                  'rideId': serializeParam(
+                                      widget.rideId, ParamType.String)
+                                });
                           },
                           text: 'Start Trip',
                           options: FFButtonOptions(

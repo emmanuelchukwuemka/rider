@@ -15,8 +15,8 @@ class LocationEntryWidget extends StatefulWidget {
     String? type,
     bool? isLast,
     bool? isPickup,
-  })  : this.address = address ?? '456 Maple Avenue, Springfield',
-        this.type = type ?? 'Home',
+  })  : this.address = address ?? '—',
+        this.type = type ?? '—',
         this.isLast = isLast ?? false,
         this.isPickup = isPickup ?? false;
 
@@ -120,7 +120,7 @@ class _LocationEntryWidgetState extends State<LocationEntryWidget> {
               Text(
                 valueOrDefault<String>(
                   widget!.address,
-                  '456 Maple Avenue, Springfield',
+                  '—',
                 ),
                 maxLines: 1,
                 style: FlutterFlowTheme.of(context).bodyMedium.override(

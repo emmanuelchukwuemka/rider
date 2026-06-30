@@ -11,7 +11,7 @@ class CoordinateBadgeWidget extends StatefulWidget {
   const CoordinateBadgeWidget({
     super.key,
     String? text,
-  }) : this.text = text ?? 'Victoria Island';
+  }) : this.text = text ?? '—';
 
   final String text;
 
@@ -61,7 +61,7 @@ class _CoordinateBadgeWidgetState extends State<CoordinateBadgeWidget> {
           child: Text(
             valueOrDefault<String>(
               widget!.text,
-              'Victoria Island',
+              '—',
             ),
             style: FlutterFlowTheme.of(context).labelSmall.override(
                   font: GoogleFonts.inter(

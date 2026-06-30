@@ -16,10 +16,10 @@ class ScheduledRideCard2Widget extends StatefulWidget {
     String? destination,
     String? fare,
     String? pickup,
-  })  : this.dateTime = dateTime ?? 'Today, 08:30 AM',
-        this.destination = destination ?? 'Work Office',
-        this.fare = fare ?? '\$12.50',
-        this.pickup = pickup ?? 'Home';
+  })  : this.dateTime = dateTime ?? '—',
+        this.destination = destination ?? '—',
+        this.fare = fare ?? '—',
+        this.pickup = pickup ?? '—';
 
   final String dateTime;
   final String destination;
@@ -112,7 +112,7 @@ class _ScheduledRideCard2WidgetState extends State<ScheduledRideCard2Widget> {
                                     Text(
                                       valueOrDefault<String>(
                                         widget!.dateTime,
-                                        'Today, 08:30 AM',
+                                        '—',
                                       ),
                                       style: FlutterFlowTheme.of(context)
                                           .labelLarge
@@ -197,7 +197,7 @@ class _ScheduledRideCard2WidgetState extends State<ScheduledRideCard2Widget> {
                             child: Text(
                               valueOrDefault<String>(
                                 widget!.pickup,
-                                'Home',
+                                '—',
                               ),
                               maxLines: 1,
                               style: FlutterFlowTheme.of(context)
@@ -256,7 +256,7 @@ class _ScheduledRideCard2WidgetState extends State<ScheduledRideCard2Widget> {
                             child: Text(
                               valueOrDefault<String>(
                                 widget!.destination,
-                                'Work Office',
+                                '—',
                               ),
                               maxLines: 1,
                               style: FlutterFlowTheme.of(context)

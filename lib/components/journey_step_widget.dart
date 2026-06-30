@@ -15,9 +15,9 @@ class JourneyStepWidget extends StatefulWidget {
     bool? hasNext,
     String? stepName,
     bool? active,
-  })  : this.address = address ?? '123 Driver Current Loc',
+  })  : this.address = address ?? '—',
         this.hasNext = hasNext ?? true,
-        this.stepName = stepName ?? 'Driver Location',
+        this.stepName = stepName ?? '—',
         this.active = active ?? true;
 
   final String address;
@@ -111,7 +111,7 @@ class _JourneyStepWidgetState extends State<JourneyStepWidget> {
                     Text(
                       valueOrDefault<String>(
                         widget!.stepName,
-                        'Driver Location',
+                        '—',
                       ),
                       style: FlutterFlowTheme.of(context).labelSmall.override(
                             font: GoogleFonts.inter(
@@ -136,7 +136,7 @@ class _JourneyStepWidgetState extends State<JourneyStepWidget> {
                     Text(
                       valueOrDefault<String>(
                         widget!.address,
-                        '123 Driver Current Loc',
+                        '—',
                       ),
                       maxLines: 1,
                       style: FlutterFlowTheme.of(context).bodyMedium.override(

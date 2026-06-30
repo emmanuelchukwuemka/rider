@@ -104,3 +104,7 @@ export '/passengersveiw/p_trip_complete/p_trip_complete_widget.dart'
     show PTripCompleteWidget;
 export '/passengersveiw/passenger_edit_profile/passenger_edit_profile_widget.dart'
     show PassengerEditProfileWidget;
+export '/passengersveiw/p_my_scheduled_rides/p_my_scheduled_rides_widget.dart'
+    show PMyScheduledRidesWidget;
+export '/driver/driver_edit_profile/driver_edit_profile_widget.dart'
+    show DriverEditProfileWidget;

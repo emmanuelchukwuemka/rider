@@ -7,6 +7,9 @@ class SocketService {
 
   IO.Socket? _socket;
 
+  // Ride IDs the driver has already dismissed (timed out / declined) this session
+  final Set<String> dismissedRideIds = {};
+
   Function(dynamic)? onNewRideOffer;
   Function(dynamic)? onRideAccepted;
   Function(dynamic)? onRideStarted;
@@ -77,6 +80,11 @@ class SocketService {
     _socket!.on('driverArrived', (data) {
       print('[Socket] driverArrived: $data');
       onDriverArrived?.call(data);
+    });
+
+    _socket!.on('ride_cancelled', (data) {
+      print('[Socket] ride_cancelled: $data');
+      onRideCancelled?.call(data);
     });
 
     _socket!.on('chat_message', (data) {

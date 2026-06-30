@@ -14,7 +14,7 @@ class FareItemWidget extends StatefulWidget {
     String? label,
     String? value,
   })  : this.label = label ?? 'Base Fare',
-        this.value = value ?? '\$15.00';
+        this.value = value ?? '—';
 
   final String label;
   final String value;
@@ -75,7 +75,7 @@ class _FareItemWidgetState extends State<FareItemWidget> {
           Text(
             valueOrDefault<String>(
               widget!.value,
-              '\$15.00',
+              '—',
             ),
             style: FlutterFlowTheme.of(context).bodyLarge.override(
                   font: GoogleFonts.inter(

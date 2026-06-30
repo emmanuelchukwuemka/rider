@@ -1,3 +1,5 @@
+import '/auth/custom_auth/auth_util.dart';
+import '/backend/api_service.dart';
 import '/flutter_flow/flutter_flow_charts.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -29,10 +31,14 @@ class _DEarningsWidgetState extends State<DEarningsWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  List<Map<String, dynamic>> _recentRides = [];
+  bool _ridesLoading = true;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => DEarningsModel());
+    _loadRecentRides();
   }
 
   @override
@@ -40,6 +46,113 @@ class _DEarningsWidgetState extends State<DEarningsWidget> {
     _model.dispose();
 
     super.dispose();
+  }
+
+  void _showCashOutSheet(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: theme.secondaryBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+            24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: theme.alternate,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Icon(Icons.account_balance_rounded,
+                size: 48, color: theme.primary),
+            const SizedBox(height: 12),
+            Text(
+              'Cash Out',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: theme.primaryText,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Bank payouts are processed every Monday. Contact support to link your bank account.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: theme.secondaryText,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.primaryBackground,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.alternate),
+              ),
+              child: Column(
+                children: [
+                  _cashRow(theme, 'Bank', 'Link your account in Settings'),
+                  const SizedBox(height: 8),
+                  _cashRow(theme, 'Processing', '1–2 business days'),
+                  const SizedBox(height: 8),
+                  _cashRow(theme, 'Minimum', '₦1,000'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(_),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text('OK, Got It',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cashRow(dynamic theme, String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: GoogleFonts.inter(
+                fontSize: 13, color: theme.secondaryText)),
+        Text(value,
+            style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: theme.primaryText)),
+      ],
+    );
+  }
+
+  Future<void> _loadRecentRides() async {
+    final rides = await fetchDriverRideHistory(currentUserUid);
+    if (mounted) setState(() { _recentRides = rides; _ridesLoading = false; });
   }
 
   @override
@@ -228,21 +341,24 @@ class _DEarningsWidgetState extends State<DEarningsWidget> {
                                                 lineHeight: 1.25,
                                               ),
                                         ),
-                                        wrapWithModel(
-                                          model: _model.buttonModel,
-                                          updateCallback: () =>
-                                              safeSetState(() {}),
-                                          child: ButtonWidget(
-                                            content: 'Cash Out',
-                                            iconPresent: false,
-                                            iconEndPresent: false,
-                                            color: FlutterFlowTheme.of(context)
-                                                .secondaryText,
-                                            variant: 'secondary',
-                                            size: 'small',
-                                            fullWidth: false,
-                                            loading: false,
-                                            disabled: false,
+                                        GestureDetector(
+                                          onTap: () => _showCashOutSheet(context),
+                                          child: wrapWithModel(
+                                            model: _model.buttonModel,
+                                            updateCallback: () =>
+                                                safeSetState(() {}),
+                                            child: ButtonWidget(
+                                              content: 'Cash Out',
+                                              iconPresent: false,
+                                              iconEndPresent: false,
+                                              color: FlutterFlowTheme.of(context)
+                                                  .secondaryText,
+                                              variant: 'secondary',
+                                              size: 'small',
+                                              fullWidth: false,
+                                              loading: false,
+                                              disabled: false,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -323,7 +439,7 @@ class _DEarningsWidgetState extends State<DEarningsWidget> {
                                           ),
                                     ),
                                     Text(
-                                      'Oct 16 - Oct 22',
+                                      '—',
                                       style: FlutterFlowTheme.of(context)
                                           .labelMedium
                                           .override(
@@ -613,34 +729,41 @@ class _DEarningsWidgetState extends State<DEarningsWidget> {
                                     ),
                                   ],
                                 ),
-                                  StreamBuilder<List<RideRecord>>(
-                                    stream: queryRideRecord(),
-                                    builder: (context, rideSnapshot) {
-                                      if (!rideSnapshot.hasData) {
-                                        return Center(child: CircularProgressIndicator());
-                                      }
-                                      final rides = rideSnapshot.data!;
-                                      if (rides.isEmpty) {
-                                        return Padding(
-                                          padding: EdgeInsets.all(16.0),
-                                          child: Text('No recent trips'),
-                                        );
-                                      }
-                                      return Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        mainAxisAlignment: MainAxisAlignment.start,
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: rides.take(5).map((ride) {
-                                          return EarningsCardWidget(
-                                            amount: ride.finalFare.toStringAsFixed(0),
-                                            date: DateFormat('MMM d, h:mm a').format(ride.completedAt ?? ride.requestedAt ?? DateTime.now()),
-                                            destination: ride.dropoffAddress.isNotEmpty ? ride.dropoffAddress : '—',
-                                            pickup: ride.pickupAddress.isNotEmpty ? ride.pickupAddress : '—',
-                                          );
-                                        }).toList().divide(SizedBox(height: 8.0)),
-                                      );
-                                    },
-                                  ),
+                                  _ridesLoading
+                                      ? Center(child: CircularProgressIndicator())
+                                      : _recentRides.isEmpty
+                                          ? Padding(
+                                              padding: EdgeInsets.all(16.0),
+                                              child: Text(
+                                                'No recent trips',
+                                                style: FlutterFlowTheme.of(context).bodyMedium.override(
+                                                  font: GoogleFonts.inter(),
+                                                  color: FlutterFlowTheme.of(context).secondaryText,
+                                                ),
+                                              ),
+                                            )
+                                          : Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              mainAxisAlignment: MainAxisAlignment.start,
+                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              children: _recentRides.take(5).map((ride) {
+                                                final fare = double.tryParse(
+                                                    (ride['estimated_fare'] ?? ride['fare'] ?? 0).toString()) ?? 0.0;
+                                                final pickup = (ride['pickup_address'] ?? '').toString().trim();
+                                                final dropoff = (ride['dropoff_address'] ?? '').toString().trim();
+                                                DateTime? createdAt;
+                                                final raw = ride['requested_at'] ?? ride['created_at'] ?? ride['createdAt'];
+                                                if (raw != null) createdAt = DateTime.tryParse(raw.toString());
+                                                return EarningsCardWidget(
+                                                  amount: fare.toStringAsFixed(0),
+                                                  date: createdAt != null
+                                                      ? dateTimeFormat('MMM d, h:mm a', createdAt)
+                                                      : '—',
+                                                  destination: dropoff.isNotEmpty ? dropoff : '—',
+                                                  pickup: pickup.isNotEmpty ? pickup : '—',
+                                                );
+                                              }).toList().divide(SizedBox(height: 8.0)),
+                                            ),
                               ].divide(SizedBox(height: 16.0)),
                             ),
                             Container(

@@ -25,6 +25,11 @@ Future<void> authManagerSignOut() async {
   await prefs.remove('authToken');
   await prefs.remove('uid');
   await prefs.remove('email');
+  await prefs.remove('displayName');
+  await prefs.remove('phoneNumber');
+  await prefs.remove('driverType');
+  await prefs.remove('activeRideId');
+  await prefs.remove('activeRideStatus');
   currentUser = null;
   quickDropAuthSubject.add(QuickDropCustomUser(loggedIn: false));
 }

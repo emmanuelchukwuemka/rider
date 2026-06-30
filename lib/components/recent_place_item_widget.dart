@@ -14,8 +14,8 @@ class RecentPlaceItemWidget extends StatefulWidget {
     String? address,
     this.icon,
     String? title,
-  })  : this.address = address ?? '456 Business Ave, Tech Park',
-        this.title = title ?? 'Work';
+  })  : this.address = address ?? '—',
+        this.title = title ?? '—';
 
   final String address;
   final Widget? icon;
@@ -100,7 +100,7 @@ class _RecentPlaceItemWidgetState extends State<RecentPlaceItemWidget> {
                 Text(
                   valueOrDefault<String>(
                     widget!.address,
-                    '456 Business Ave, Tech Park',
+                    '—',
                   ),
                   maxLines: 1,
                   style: FlutterFlowTheme.of(context).bodySmall.override(

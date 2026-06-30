@@ -11,7 +11,7 @@ import '/flutter_flow/place.dart';
 import 'dart:io';
 import 'dart:ui';
 import 'page7_schedule_ride_widget.dart' show Page7ScheduleRideWidget;
-import '/backend/schema/util/mock_firestore.dart';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';

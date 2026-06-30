@@ -147,9 +147,7 @@ class _NewScreen72WidgetState extends State<NewScreen72Widget>
                               color: FlutterFlowTheme.of(context).primaryText,
                               size: 24.0,
                             ),
-                            onPressed: () {
-                              print('IconButton pressed ...');
-                            },
+                            onPressed: () => context.safePop(),
                           ),
                           Text(
                             'Confirm Booking',
@@ -293,7 +291,7 @@ class _NewScreen72WidgetState extends State<NewScreen72Widget>
                                                             newScreen72RideRecord
                                                                 ?.pickup
                                                                 ?.toString(),
-                                                            'Lagos',
+                                                            '—',
                                                           ),
                                                           style: FlutterFlowTheme
                                                                   .of(context)
@@ -416,7 +414,7 @@ class _NewScreen72WidgetState extends State<NewScreen72Widget>
                                                               newScreen72RideRecord
                                                                   ?.rideType
                                                                   ?.name,
-                                                              'ride_type',
+                                                              '—',
                                                             ),
                                                             maxLines: 1,
                                                             style: FlutterFlowTheme
@@ -503,7 +501,7 @@ class _NewScreen72WidgetState extends State<NewScreen72Widget>
                                                 ),
                                               ),
                                               Text(
-                                                '₦2000',
+                                                '—',
                                                 textAlign: TextAlign.end,
                                                 maxLines: 1,
                                                 style: FlutterFlowTheme.of(
@@ -645,7 +643,7 @@ class _NewScreen72WidgetState extends State<NewScreen72Widget>
                                                             newScreen72RideRecord
                                                                 ?.pickup
                                                                 ?.toString(),
-                                                            'pickup_location',
+                                                            '—',
                                                           ),
                                                           maxLines: 1,
                                                           style: FlutterFlowTheme
@@ -736,7 +734,7 @@ class _NewScreen72WidgetState extends State<NewScreen72Widget>
                                                             newScreen72RideRecord
                                                                 ?.dropoff
                                                                 ?.toString(),
-                                                            'drop_location',
+                                                            '—',
                                                           ),
                                                           maxLines: 1,
                                                           style: FlutterFlowTheme

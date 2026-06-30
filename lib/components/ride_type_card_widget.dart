@@ -21,9 +21,9 @@ class RideTypeCardWidget extends StatefulWidget {
     bool? selected,
   })  : this.capacity = capacity ?? '4',
         this.description = description ?? 'Affordable, everyday rides',
-        this.eta = eta ?? '5 mins',
-        this.name = name ?? 'Quick Economy',
-        this.price = price ?? '₦1,200',
+        this.eta = eta ?? '—',
+        this.name = name ?? '—',
+        this.price = price ?? '—',
         this.selected = selected ?? true;
 
   final String capacity;
@@ -173,7 +173,7 @@ class _RideTypeCardWidgetState extends State<RideTypeCardWidget> {
                                 Text(
                                   valueOrDefault<String>(
                                     containerRideOptionsRecord?.price,
-                                    '₦1200',
+                                    '—',
                                   ),
                                   style: FlutterFlowTheme.of(context)
                                       .titleMedium
@@ -216,7 +216,7 @@ class _RideTypeCardWidgetState extends State<RideTypeCardWidget> {
                                     Text(
                                       valueOrDefault<String>(
                                         widget!.eta,
-                                        '5 mins',
+                                        '—',
                                       ),
                                       style: FlutterFlowTheme.of(context)
                                           .bodySmall

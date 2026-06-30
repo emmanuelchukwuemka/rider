@@ -1,14 +1,19 @@
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_google_map.dart';
+import '/backend/api_service.dart';
+import '/backend/socket_service.dart';
+import '/auth/custom_auth/auth_util.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../page15_passenger_profile/page15_passenger_profile_widget.dart';
 import '../passenger_wallet/passenger_wallet_widget.dart';
 import '../passenger_activity/passenger_activity_widget.dart';
 import '../page6_set_destination/page6_set_destination_widget.dart';
 import '../page7_schedule_ride/page7_schedule_ride_widget.dart';
+import '../p_my_scheduled_rides/p_my_scheduled_rides_widget.dart';
 import 'passengers_dashboardnew_model.dart';
 export 'passengers_dashboardnew_model.dart';
 
@@ -33,11 +38,43 @@ class _PassengersDashboardnewWidgetState
   void initState() {
     super.initState();
     _model = createModel(context, () => PassengersDashboardnewModel());
+    // Connect socket early so it's ready before the passenger books a ride
+    SocketService().initSocket(currentUserUid, 'passenger');
     getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0), cached: false)
         .then((loc) {
       if (!mounted) return;
       safeSetState(() => _currentLocation = loc);
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resumeActiveRide());
+  }
+
+  Future<void> _resumeActiveRide() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rideId = prefs.getString('activeRideId');
+    if (rideId == null || rideId.isEmpty) return;
+
+    final ride = await fetchRideById(rideId);
+    final status = ride?['status']?.toString() ?? ride?['ride']?['status']?.toString() ?? '';
+
+    if (status == 'completed' || status == 'cancelled' || status.isEmpty) {
+      await prefs.remove('activeRideId');
+      await prefs.remove('activeRideStatus');
+      return;
+    }
+
+    await prefs.setString('activeRideStatus', status);
+
+    if (!mounted) return;
+    if (status == 'pending') {
+      context.pushNamed('Page10SearchingforDriverr',
+          queryParameters: {'rideId': rideId});
+    } else if (status == 'accepted') {
+      context.pushNamed('PDriverOnTheWay',
+          queryParameters: {'rideId': rideId});
+    } else if (status == 'in_progress') {
+      context.pushNamed('Page12TripInProgress',
+          queryParameters: {'rideId': rideId});
+    }
   }
 
   @override
@@ -159,7 +196,11 @@ class _PassengersDashboardnewWidgetState
                   const Spacer(),
                   _GlassButton(
                     icon: Icons.notifications_outlined,
-                    onTap: () {},
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Notifications coming soon')),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -302,6 +343,29 @@ class _PassengersDashboardnewWidgetState
                                     theme: theme,
                                   ),
                                 ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _ActionCard(
+                                    icon: Icons.list_alt_rounded,
+                                    label: 'My Bookings',
+                                    subtitle: 'Scheduled rides',
+                                    iconColor: const Color(0xFF0F766E),
+                                    bgColor: const Color(0xFF0F766E).withOpacity(0.08),
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const PMyScheduledRidesWidget()),
+                                    ),
+                                    theme: theme,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(child: SizedBox()),
                               ],
                             ),
 

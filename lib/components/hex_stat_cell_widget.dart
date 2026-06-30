@@ -15,7 +15,7 @@ class HexStatCellWidget extends StatefulWidget {
     String? label,
     String? value,
   })  : this.label = label ?? 'Trips',
-        this.value = value ?? '12';
+        this.value = value ?? '—';
 
   final Widget? icon;
   final String label;
@@ -77,7 +77,7 @@ class _HexStatCellWidgetState extends State<HexStatCellWidget> {
                   Text(
                     valueOrDefault<String>(
                       widget!.value,
-                      '12',
+                      '—',
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,

@@ -1,12 +1,16 @@
 import '/components/journey_step_widget.dart';
 import '/flutter_flow/flutter_flow_google_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/index.dart';
 import '/pages/button/button_widget.dart';
+import '/backend/api_service.dart';
+import '/backend/socket_service.dart';
 import 'dart:ui';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,7 +19,9 @@ import 'p_trip_in_progress_model.dart';
 export 'p_trip_in_progress_model.dart';
 
 class PTripInProgressWidget extends StatefulWidget {
-  const PTripInProgressWidget({super.key});
+  const PTripInProgressWidget({super.key, this.rideId = ''});
+
+  final String rideId;
 
   static String routeName = 'PTripInProgress';
   static String routePath = '/pTripInProgress';
@@ -29,16 +35,33 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  Map<String, dynamic>? _ride;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => PTripInProgressModel());
+    _loadRide();
+    SocketService().onRideCompleted = (data) {
+      if (!mounted) return;
+      context.pushNamed(PTripCompleteWidget.routeName,
+          queryParameters: {
+            'rideId': serializeParam(widget.rideId, ParamType.String)
+          });
+    };
+  }
+
+  Future<void> _loadRide() async {
+    if (widget.rideId.isNotEmpty) {
+      final data = await fetchRideById(widget.rideId);
+      if (mounted) setState(() => _ride = data);
+    }
   }
 
   @override
   void dispose() {
+    SocketService().onRideCompleted = null;
     _model.dispose();
-
     super.dispose();
   }
 
@@ -123,7 +146,9 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Head North on Main St',
+                                        (_ride?['dropoff_address'] ?? '').toString().trim().isNotEmpty
+                                            ? (_ride!['dropoff_address'] as String)
+                                            : 'En route to destination',
                                         maxLines: 1,
                                         style: FlutterFlowTheme.of(context)
                                             .bodyMedium
@@ -149,7 +174,7 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
-                                        '0.5 miles to next turn',
+                                        '${((_ride?['distanceKm'] ?? 0.0) as num).toStringAsFixed(1)} km to destination',
                                         style: FlutterFlowTheme.of(context)
                                             .bodySmall
                                             .override(
@@ -193,7 +218,7 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                         8.0, 4.0, 8.0, 4.0),
                                     child: Container(
                                       child: Text(
-                                        '15 min',
+                                        '${((((_ride?['distanceKm'] ?? 0.0) as num) / 30.0) * 60).ceil()} min',
                                         style: FlutterFlowTheme.of(context)
                                             .labelLarge
                                             .override(
@@ -256,8 +281,12 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                           color: FlutterFlowTheme.of(context).primaryText,
                           size: 24.0,
                         ),
-                        onPressed: () {
-                          print('IconButton pressed ...');
+                        onPressed: () async {
+                          final loc = await getCurrentUserLocation(
+                              defaultLocation: const LatLng(6.5244, 3.3792));
+                          _model.mapGoogleMapsController.future.then((c) =>
+                              c.animateCamera(gmaps.CameraUpdate.newLatLng(
+                                  gmaps.LatLng(loc.latitude, loc.longitude))));
                         },
                       ),
                       FlutterFlowIconButton(
@@ -269,8 +298,8 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                           color: FlutterFlowTheme.of(context).onError,
                           size: 24.0,
                         ),
-                        onPressed: () {
-                          print('IconButton pressed ...');
+                        onPressed: () async {
+                          await launchUrl(Uri(scheme: 'tel', path: '112'));
                         },
                       ),
                     ].divide(SizedBox(height: 16.0)),
@@ -331,7 +360,12 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Arriving in 15 mins',
+                                      () {
+                                        final dist = (_ride?['distanceKm'] as num?)?.toDouble();
+                                        if (dist == null || dist <= 0) return 'En route';
+                                        final mins = (dist / 30.0 * 60).ceil();
+                                        return 'Arriving in $mins min';
+                                      }(),
                                       style: FlutterFlowTheme.of(context)
                                           .titleLarge
                                           .override(
@@ -360,7 +394,15 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                           ),
                                     ),
                                     Text(
-                                      '4.2 miles • 10:45 AM arrival',
+                                      () {
+                                        final dist = (_ride?['distanceKm'] as num?)?.toDouble();
+                                        if (dist == null || dist <= 0) return '—';
+                                        final mins = (dist / 30.0 * 60).ceil();
+                                        final arrival = DateTime.now().add(Duration(minutes: mins));
+                                        final hh = arrival.hour.toString().padLeft(2, '0');
+                                        final mm = arrival.minute.toString().padLeft(2, '0');
+                                        return '${dist.toStringAsFixed(1)} km • $hh:$mm arrival';
+                                      }(),
                                       style: FlutterFlowTheme.of(context)
                                           .bodyMedium
                                           .override(
@@ -420,32 +462,31 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                               mainAxisAlignment: MainAxisAlignment.start,
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(9999.0),
-                                  child: Container(
+                                Builder(builder: (context) {
+                                  final driverName = (_ride?['driver_name'] ?? '').toString().trim();
+                                  final initial = driverName.isNotEmpty ? driverName[0].toUpperCase() : 'D';
+                                  return Container(
                                     width: 56.0,
                                     height: 56.0,
                                     decoration: BoxDecoration(
-                                      borderRadius:
-                                          BorderRadius.circular(9999.0),
-                                      shape: BoxShape.rectangle,
+                                      color: FlutterFlowTheme.of(context).primary.withOpacity(0.15),
+                                      shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: FlutterFlowTheme.of(context)
-                                            .primary,
+                                        color: FlutterFlowTheme.of(context).primary,
                                         width: 2.0,
                                       ),
                                     ),
-                                    child: CachedNetworkImage(
-                                      fadeInDuration: Duration(milliseconds: 0),
-                                      fadeOutDuration:
-                                          Duration(milliseconds: 0),
-                                      imageUrl:
-                                          'https://dimg.dreamflow.cloud/v1/image/professional%20driver%20portrait',
-                                      fit: BoxFit.cover,
-                                      alignment: Alignment(0.0, 0.0),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      initial,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        color: FlutterFlowTheme.of(context).primary,
+                                      ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                }),
                                 Expanded(
                                   flex: 1,
                                   child: Column(
@@ -455,7 +496,9 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Samuel Bankole',
+                                        (_ride?['driver_name'] ?? 'Your Driver').toString().trim().isNotEmpty
+                                            ? (_ride?['driver_name'] ?? 'Your Driver').toString().trim()
+                                            : 'Your Driver',
                                         maxLines: 1,
                                         style: FlutterFlowTheme.of(context)
                                             .titleMedium
@@ -500,7 +543,7 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                             size: 16.0,
                                           ),
                                           Text(
-                                            '4.9 • Toyota Camry (Silver)',
+                                            'Your Driver',
                                             style: FlutterFlowTheme.of(context)
                                                 .bodySmall
                                                 .override(
@@ -557,8 +600,11 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                             .primary,
                                         size: 24.0,
                                       ),
-                                      onPressed: () {
-                                        print('IconButton pressed ...');
+                                      onPressed: () async {
+                                        final phone = (_ride?['driver_phone'] ?? '').toString().trim();
+                                        if (phone.isNotEmpty) {
+                                          await launchUrl(Uri(scheme: 'sms', path: phone));
+                                        }
                                       },
                                     ),
                                     FlutterFlowIconButton(
@@ -575,8 +621,11 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                             .primary,
                                         size: 24.0,
                                       ),
-                                      onPressed: () {
-                                        print('IconButton pressed ...');
+                                      onPressed: () async {
+                                        final phone = (_ride?['driver_phone'] ?? '').toString().trim();
+                                        if (phone.isNotEmpty) {
+                                          await launchUrl(Uri(scheme: 'tel', path: phone));
+                                        }
                                       },
                                     ),
                                   ].divide(SizedBox(width: 8.0)),
@@ -592,7 +641,9 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                   model: _model.journeyStepModel1,
                                   updateCallback: () => safeSetState(() {}),
                                   child: JourneyStepWidget(
-                                    address: '24, Admiralty Way, Lekki',
+                                    address: (_ride?['pickup_address'] ?? '').toString().trim().isNotEmpty
+                                        ? (_ride!['pickup_address'] as String)
+                                        : 'Pickup location',
                                     hasNext: true,
                                     stepName: 'Pickup',
                                     active: false,
@@ -602,7 +653,9 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                                   model: _model.journeyStepModel2,
                                   updateCallback: () => safeSetState(() {}),
                                   child: JourneyStepWidget(
-                                    address: 'International Airport, Ikeja',
+                                    address: (_ride?['dropoff_address'] ?? '').toString().trim().isNotEmpty
+                                        ? (_ride!['dropoff_address'] as String)
+                                        : 'Destination',
                                     hasNext: false,
                                     stepName: 'Destination',
                                     active: true,
@@ -687,7 +740,11 @@ class _PTripInProgressWidgetState extends State<PTripInProgressWidget> {
                               child: FFButtonWidget(
                                 onPressed: () {
                                   context.pushNamed(
-                                      PTripCompleteWidget.routeName);
+                                      PTripCompleteWidget.routeName,
+                                      queryParameters: {
+                                        'rideId': serializeParam(
+                                            widget.rideId, ParamType.String)
+                                      });
                                 },
                                 text: 'End Trip',
                                 options: FFButtonOptions(

@@ -1,20 +1,22 @@
-import '/components/button2/button2_widget.dart';
-import '/components/location_node2/location_node2_widget.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '/backend/api_service.dart';
+import '/auth/custom_auth/auth_util.dart';
 import '/flutter_flow/flutter_flow_google_map.dart';
-import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
 import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'arrived_at_pickup9_model.dart';
 export 'arrived_at_pickup9_model.dart';
 
 class ArrivedAtPickup9Widget extends StatefulWidget {
-  const ArrivedAtPickup9Widget({super.key});
+  const ArrivedAtPickup9Widget({super.key, this.rideId = ''});
+
+  final String rideId;
 
   static String routeName = 'ArrivedAtPickup9';
   static String routePath = '/arrivedAtPickup9';
@@ -25,24 +27,120 @@ class ArrivedAtPickup9Widget extends StatefulWidget {
 
 class _ArrivedAtPickup9WidgetState extends State<ArrivedAtPickup9Widget> {
   late ArrivedAtPickup9Model _model;
-
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  Map<String, dynamic>? _rideData;
+  bool _starting = false;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => ArrivedAtPickup9Model());
+    _loadRide();
   }
 
   @override
   void dispose() {
     _model.dispose();
-
     super.dispose();
+  }
+
+  Future<void> _loadRide() async {
+    if (widget.rideId.isEmpty) return;
+    final data = await fetchRideById(widget.rideId);
+    if (!mounted) return;
+    if (data != null) setState(() => _rideData = data['ride'] ?? data);
+  }
+
+  Future<void> _cancelRide() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Ride?'),
+        content: const Text(
+            'Are you sure you want to cancel this ride? The passenger will be notified.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('No')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Yes, Cancel',
+                  style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await updateRideStatus(widget.rideId, 'cancel');
+    if (mounted) context.goNamed('DriverDashboard6');
+  }
+
+  Future<void> _startTrip() async {
+    if (_starting) return;
+    setState(() => _starting = true);
+    bool ok = false;
+    for (final ep in ['start', 'start-trip', 'begin', 'in_progress']) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('authToken') ?? '';
+        final res = await http.post(
+          Uri.parse('$baseUrl/api/rides/${widget.rideId}/$ep'),
+          headers: {
+            'Content-Type': 'application/json',
+            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          },
+          body: json.encode({'driver_id': currentUserUid}),
+        );
+        print('[startTrip] POST $ep → ${res.statusCode}: ${res.body}');
+        if (res.statusCode == 200 || res.statusCode == 201) { ok = true; break; }
+      } catch (_) {}
+    }
+    if (!ok) {
+      ok = await updateRideStatus(widget.rideId, 'start',
+          {'status': 'in_progress', 'driver_id': currentUserUid});
+    }
+    print('[startTrip] final result: $ok');
+    if (!mounted) return;
+    context.pushNamed('TripInProgress10',
+        queryParameters: {'rideId': widget.rideId});
+  }
+
+  String _initials(String name) {
+    final p = name.trim().split(' ');
+    if (p.length >= 2) return '${p[0][0]}${p[1][0]}'.toUpperCase();
+    if (p.isNotEmpty && p[0].isNotEmpty) return p[0][0].toUpperCase();
+    return 'P';
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final ride = _rideData;
+
+    final passengerName = (ride?['passenger']?['display_name'] ??
+            ride?['passenger']?['name'] ??
+            ride?['passenger_name'] ??
+            '')
+        .toString()
+        .trim();
+    final displayName = passengerName.isNotEmpty ? passengerName : 'Passenger';
+    final initials = _initials(displayName);
+    final pickup = (ride?['pickup_address'] ?? ride?['pickup']?['address'] ?? '')
+        .toString()
+        .trim();
+    final dropoff =
+        (ride?['dropoff_address'] ?? ride?['destination']?['address'] ?? '')
+            .toString()
+            .trim();
+    final fare = (ride?['fare'] ?? ride?['price'] ?? '').toString().trim();
+    final fareText = fare.isNotEmpty && fare != 'null' ? '₦$fare' : '';
+    final passengerPhone = (ride?['passenger']?['phone_number'] ??
+            ride?['passenger']?['phone'] ??
+            ride?['passenger_phone'] ??
+            '')
+        .toString()
+        .trim();
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -51,16 +149,17 @@ class _ArrivedAtPickup9WidgetState extends State<ArrivedAtPickup9Widget> {
       child: Scaffold(
         key: scaffoldKey,
         resizeToAvoidBottomInset: false,
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+        backgroundColor: theme.primaryBackground,
         body: Stack(
-          alignment: AlignmentDirectional(-1.0, -1.0),
           children: [
-            Container(
+            // Map background
+            Positioned.fill(
               child: FlutterFlowGoogleMap(
                 controller: _model.mapGoogleMapsController,
-                onCameraIdle: (latLng) => _model.mapGoogleMapsCenter = latLng,
-                initialLocation: _model.mapGoogleMapsCenter ??=
-                    LatLng(6.5244, 3.3792),
+                onCameraIdle: (latLng) =>
+                    _model.mapGoogleMapsCenter = latLng,
+                initialLocation:
+                    _model.mapGoogleMapsCenter ??= const LatLng(6.5244, 3.3792),
                 markerColor: GoogleMarkerColor.violet,
                 mapType: MapType.normal,
                 style: GoogleMapStyle.standard,
@@ -68,7 +167,7 @@ class _ArrivedAtPickup9WidgetState extends State<ArrivedAtPickup9Widget> {
                 allowInteraction: true,
                 allowZoom: true,
                 showZoomControls: false,
-                showLocation: false,
+                showLocation: true,
                 showCompass: false,
                 showMapToolbar: false,
                 showTraffic: false,
@@ -76,408 +175,309 @@ class _ArrivedAtPickup9WidgetState extends State<ArrivedAtPickup9Widget> {
                 mapTakesGesturePreference: false,
               ),
             ),
-            Align(
-              alignment: AlignmentDirectional(0.0, -1.0),
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Container(
-                  alignment: AlignmentDirectional(0.0, -1.0),
+
+            // Top "Arrived" badge
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context).secondaryBackground,
-                      borderRadius: BorderRadius.circular(12.0),
-                      shape: BoxShape.rectangle,
+                      color: theme.secondaryBackground,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: theme.alternate),
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Container(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 48.0,
-                              height: 48.0,
-                              decoration: BoxDecoration(
-                                color: FlutterFlowTheme.of(context).primary,
-                                borderRadius: BorderRadius.circular(8.0),
-                                shape: BoxShape.rectangle,
-                              ),
-                              alignment: AlignmentDirectional(0.0, 0.0),
-                              child: Icon(
-                                Icons.navigation_rounded,
-                                color: FlutterFlowTheme.of(context).onSurface,
-                                size: 28.0,
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '0.2 km',
-                                    style: FlutterFlowTheme.of(context)
-                                        .titleMedium
-                                        .override(
-                                          font: GoogleFonts.inter(
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .titleMedium
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .titleMedium
-                                                    .fontStyle,
-                                          ),
-                                          color: FlutterFlowTheme.of(context)
-                                              .primaryText,
-                                          letterSpacing: 0.0,
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .titleMedium
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .titleMedium
-                                                  .fontStyle,
-                                          lineHeight: 1.35,
-                                        ),
-                                  ),
-                                  Text(
-                                    'Head North on Main St',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodySmall
-                                        .override(
-                                          font: GoogleFonts.inter(
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodySmall
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodySmall
-                                                    .fontStyle,
-                                          ),
-                                          color: FlutterFlowTheme.of(context)
-                                              .secondaryText,
-                                          letterSpacing: 0.0,
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodySmall
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodySmall
-                                                  .fontStyle,
-                                          lineHeight: 1.4,
-                                        ),
-                                  ),
-                                ].divide(SizedBox(height: 4.0)),
-                              ),
-                            ),
-                          ].divide(SizedBox(width: 16.0)),
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: theme.success,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.location_on_rounded,
+                              color: Colors.white, size: 24),
                         ),
-                      ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('You have arrived!',
+                                  style: GoogleFonts.inter(
+                                    color: theme.primaryText,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  )),
+                              Text('Waiting for passenger to board',
+                                  style: GoogleFonts.inter(
+                                    color: theme.secondaryText,
+                                    fontSize: 12,
+                                  )),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
+
+            // Bottom card
             Align(
-              alignment: AlignmentDirectional(0.0, 1.0),
+              alignment: Alignment.bottomCenter,
               child: Container(
                 decoration: BoxDecoration(
-                  color: FlutterFlowTheme.of(context).secondaryBackground,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24.0),
-                    topRight: Radius.circular(24.0),
-                  ),
-                  shape: BoxShape.rectangle,
+                  color: theme.secondaryBackground,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, -3)),
+                  ],
                 ),
-                child: Padding(
-                  padding: EdgeInsets.all(24.0),
-                  child: Container(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                padding: EdgeInsets.fromLTRB(
+                    20, 14, 20, MediaQuery.of(context).padding.bottom + 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Handle
+                    Center(
+                      child: Container(
+                        width: 36, height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: theme.alternate,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+
+                    // Passenger row
+                    Row(
                       children: [
-                        Align(
-                          alignment: AlignmentDirectional(0.0, 0.0),
-                          child: Container(
-                            width: 40.0,
-                            height: 4.0,
-                            decoration: BoxDecoration(
-                              color: FlutterFlowTheme.of(context).alternate,
-                              borderRadius: BorderRadius.circular(9999.0),
-                              shape: BoxShape.rectangle,
-                            ),
+                        Container(
+                          width: 56, height: 56,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: theme.primary.withOpacity(0.12),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: theme.primary, width: 2),
+                          ),
+                          child: Text(initials,
+                              style: GoogleFonts.inter(
+                                color: theme.primary,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              )),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(displayName,
+                                  style: GoogleFonts.inter(
+                                    color: theme.primaryText,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis),
+                              if (fareText.isNotEmpty)
+                                Text(fareText,
+                                    style: GoogleFonts.inter(
+                                      color: theme.primary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    )),
+                            ],
                           ),
                         ),
                         Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(9999.0),
-                              child: Container(
-                                width: 64.0,
-                                height: 64.0,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(9999.0),
-                                  shape: BoxShape.rectangle,
-                                  border: Border.all(
-                                    color: FlutterFlowTheme.of(context).primary,
-                                    width: 2.0,
-                                  ),
-                                ),
-                                child: CachedNetworkImage(
-                                  fadeInDuration: Duration(milliseconds: 0),
-                                  fadeOutDuration: Duration(milliseconds: 0),
-                                  imageUrl:
-                                      'https://dimg.dreamflow.cloud/v1/image/friendly%20passenger%20portrait',
-                                  fit: BoxFit.cover,
-                                  alignment: Alignment(0.0, 0.0),
-                                ),
-                              ),
+                            _CircleBtn(
+                              icon: Icons.call_rounded,
+                              onTap: () {
+                                if (passengerPhone.isNotEmpty) {
+                                  launchUrl(Uri.parse('tel:$passengerPhone'));
+                                }
+                              },
                             ),
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Alexander Reed',
-                                    style: FlutterFlowTheme.of(context)
-                                        .titleLarge
-                                        .override(
-                                          font: GoogleFonts.inter(
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .titleLarge
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .titleLarge
-                                                    .fontStyle,
-                                          ),
-                                          color: FlutterFlowTheme.of(context)
-                                              .primaryText,
-                                          letterSpacing: 0.0,
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .titleLarge
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .titleLarge
-                                                  .fontStyle,
-                                          lineHeight: 1.3,
-                                        ),
-                                  ),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.max,
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.star_rounded,
-                                        color: FlutterFlowTheme.of(context)
-                                            .onSurface,
-                                        size: 16.0,
-                                      ),
-                                      Text(
-                                        '4.9 • Payment: Cash',
-                                        style: FlutterFlowTheme.of(context)
-                                            .labelMedium
-                                            .override(
-                                              font: GoogleFonts.inter(
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .labelMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .labelMedium
-                                                        .fontStyle,
-                                              ),
-                                              color:
-                                                  FlutterFlowTheme.of(context)
-                                                      .secondaryText,
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .labelMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .labelMedium
-                                                      .fontStyle,
-                                              lineHeight: 1.3,
-                                            ),
-                                      ),
-                                    ].divide(SizedBox(width: 4.0)),
-                                  ),
-                                ].divide(SizedBox(height: 4.0)),
-                              ),
+                            const SizedBox(width: 8),
+                            _CircleBtn(
+                              icon: Icons.chat_bubble_rounded,
+                              onTap: () {
+                                if (passengerPhone.isNotEmpty) {
+                                  launchUrl(Uri.parse('sms:$passengerPhone'));
+                                }
+                              },
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                FlutterFlowIconButton(
-                                  borderColor:
-                                      FlutterFlowTheme.of(context).alternate,
-                                  borderRadius: 9999.0,
-                                  borderWidth: 1.0,
-                                  buttonSize: 40.0,
-                                  fillColor: FlutterFlowTheme.of(context)
-                                      .primaryBackground,
-                                  icon: Icon(
-                                    Icons.call_rounded,
-                                    color: FlutterFlowTheme.of(context).primary,
-                                    size: 24.0,
-                                  ),
-                                  onPressed: () {
-                                    print('IconButton pressed ...');
-                                  },
-                                ),
-                                FlutterFlowIconButton(
-                                  borderColor:
-                                      FlutterFlowTheme.of(context).alternate,
-                                  borderRadius: 9999.0,
-                                  borderWidth: 1.0,
-                                  buttonSize: 40.0,
-                                  fillColor: FlutterFlowTheme.of(context)
-                                      .primaryBackground,
-                                  icon: Icon(
-                                    Icons.chat_bubble_rounded,
-                                    color: FlutterFlowTheme.of(context).primary,
-                                    size: 24.0,
-                                  ),
-                                  onPressed: () {
-                                    print('IconButton pressed ...');
-                                  },
-                                ),
-                              ].divide(SizedBox(width: 8.0)),
-                            ),
-                          ].divide(SizedBox(width: 16.0)),
+                          ],
                         ),
-                        Divider(
-                          height: 16.0,
-                          thickness: 1.0,
-                          indent: 0.0,
-                          endIndent: 0.0,
-                          color: FlutterFlowTheme.of(context).alternate,
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            wrapWithModel(
-                              model: _model.locationNodeModel1,
-                              updateCallback: () => safeSetState(() {}),
-                              child: LocationNode2Widget(
-                                address: '128 Luxury Estate, Victoria Island',
-                                type: 'Pickup',
-                                isPickup: true,
-                              ),
-                            ),
-                            wrapWithModel(
-                              model: _model.locationNodeModel2,
-                              updateCallback: () => safeSetState(() {}),
-                              child: LocationNode2Widget(
-                                address: 'International Airport, Terminal 2',
-                                type: 'Destination',
-                                isPickup: false,
-                              ),
-                            ),
-                          ].divide(SizedBox(height: 16.0)),
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: FlutterFlowTheme.of(context).success10,
-                                borderRadius: BorderRadius.circular(12.0),
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Container(
-                                  child: Container(
-                                    alignment: AlignmentDirectional(0.0, 0.0),
-                                    child: Text(
-                                      'ARRIVED AT PICKUP',
-                                      style: FlutterFlowTheme.of(context)
-                                          .labelLarge
-                                          .override(
-                                            font: GoogleFonts.inter(
-                                              fontWeight: FontWeight.bold,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .labelLarge
-                                                      .fontStyle,
-                                            ),
-                                            color: FlutterFlowTheme.of(context)
-                                                .onPrimary,
-                                            letterSpacing: 0.0,
-                                            fontWeight: FontWeight.bold,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .labelLarge
-                                                    .fontStyle,
-                                            lineHeight: 1.3,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            wrapWithModel(
-                              model: _model.buttonModel,
-                              updateCallback: () => safeSetState(() {}),
-                              child: Button2Widget(
-                                content: 'START TRIP',
-                                icon: Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: FlutterFlowTheme.of(context).onPrimary,
-                                  size: 16.0,
-                                ),
-                                iconPresent: true,
-                                iconEndPresent: false,
-                                color: FlutterFlowTheme.of(context).success,
-                                variant: 'primary',
-                                size: 'large',
-                                fullWidth: true,
-                                loading: false,
-                                disabled: false,
-                              ),
-                            ),
-                          ].divide(SizedBox(height: 16.0)),
-                        ),
-                      ].divide(SizedBox(height: 24.0)),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 14),
+
+                    // Pickup / Dropoff
+                    if (pickup.isNotEmpty || dropoff.isNotEmpty)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: theme.primaryBackground,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: theme.alternate),
+                        ),
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          children: [
+                            if (pickup.isNotEmpty)
+                              _AddrRow(
+                                icon: Icons.circle,
+                                iconColor: theme.primary,
+                                label: pickup,
+                                sub: 'Pickup',
+                              ),
+                            if (pickup.isNotEmpty && dropoff.isNotEmpty)
+                              Divider(
+                                  height: 12,
+                                  color: theme.alternate),
+                            if (dropoff.isNotEmpty)
+                              _AddrRow(
+                                icon: Icons.location_on_rounded,
+                                iconColor: Colors.red,
+                                label: dropoff,
+                                sub: 'Destination',
+                              ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+
+                    // START TRIP button
+                    SizedBox(
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: _starting ? null : _startTrip,
+                        icon: _starting
+                            ? const SizedBox(
+                                width: 18, height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.play_arrow_rounded,
+                                color: Colors.white, size: 22),
+                        label: Text(
+                          _starting ? 'Starting…' : 'START TRIP',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.success,
+                          disabledBackgroundColor:
+                              theme.success.withOpacity(0.6),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // CANCEL RIDE button
+                    SizedBox(
+                      height: 44,
+                      child: TextButton.icon(
+                        onPressed: _cancelRide,
+                        icon: const Icon(Icons.cancel_outlined,
+                            color: Colors.red, size: 18),
+                        label: Text(
+                          'Cancel Ride',
+                          style: GoogleFonts.inter(
+                            color: Colors.red,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CircleBtn extends StatelessWidget {
+  const _CircleBtn({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 38, height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: theme.primaryBackground,
+          shape: BoxShape.circle,
+          border: Border.all(color: theme.alternate),
+        ),
+        child: Icon(icon, color: theme.primary, size: 18),
+      ),
+    );
+  }
+}
+
+class _AddrRow extends StatelessWidget {
+  const _AddrRow(
+      {required this.icon,
+      required this.iconColor,
+      required this.label,
+      required this.sub});
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String sub;
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, color: iconColor, size: 14),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(sub,
+                  style: GoogleFonts.inter(
+                      color: theme.secondaryText, fontSize: 10)),
+              Text(label,
+                  style: GoogleFonts.inter(
+                      color: theme.primaryText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

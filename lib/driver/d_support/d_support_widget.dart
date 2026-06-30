@@ -3,6 +3,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'd_support_model.dart';
 export 'd_support_model.dart';
@@ -132,7 +133,7 @@ class _DSupportWidgetState extends State<DSupportWidget> {
                 children: [
                   Expanded(
                     child: FFButtonWidget(
-                      onPressed: () {},
+                      onPressed: () => launchUrl(Uri.parse('tel:+2348000000000')),
                       text: 'Call Us',
                       icon: Icon(Icons.phone, size: 15),
                       options: FFButtonOptions(
@@ -153,7 +154,7 @@ class _DSupportWidgetState extends State<DSupportWidget> {
                   SizedBox(width: 16.0),
                   Expanded(
                     child: FFButtonWidget(
-                      onPressed: () {},
+                      onPressed: () => launchUrl(Uri.parse('mailto:support@quickdrop.ng')),
                       text: 'Email Us',
                       icon: Icon(Icons.email, size: 15),
                       options: FFButtonOptions(

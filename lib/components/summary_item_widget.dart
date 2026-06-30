@@ -15,7 +15,7 @@ class SummaryItemWidget extends StatefulWidget {
     String? label,
     String? value,
   })  : this.label = label ?? 'Distance',
-        this.value = value ?? '8.4 km';
+        this.value = value ?? '—';
 
   final Widget? icon;
   final String label;
@@ -105,7 +105,7 @@ class _SummaryItemWidgetState extends State<SummaryItemWidget> {
                         Text(
                           valueOrDefault<String>(
                             widget!.value,
-                            '8.4 km',
+                            '—',
                           ),
                           maxLines: 2,
                           style: FlutterFlowTheme.of(context)

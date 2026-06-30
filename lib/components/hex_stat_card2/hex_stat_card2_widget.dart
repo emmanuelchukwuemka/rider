@@ -15,7 +15,7 @@ class HexStatCard2Widget extends StatefulWidget {
     String? label,
     String? value,
   })  : this.label = label ?? 'Today\'s Earnings',
-        this.value = value ?? '\$0.00';
+        this.value = value ?? '—';
 
   final Widget? icon;
   final String label;

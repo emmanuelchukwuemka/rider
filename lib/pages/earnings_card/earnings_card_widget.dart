@@ -16,10 +16,10 @@ class EarningsCardWidget extends StatefulWidget {
     String? date,
     String? destination,
     String? pickup,
-  })  : this.amount = amount ?? '3500',
-        this.date = date ?? 'Today, 2:30 PM',
-        this.destination = destination ?? 'Lagos Island',
-        this.pickup = pickup ?? 'Ikeja City Mall';
+  })  : this.amount = amount ?? '0',
+        this.date = date ?? '',
+        this.destination = destination ?? '',
+        this.pickup = pickup ?? '';
 
   final String amount;
   final String date;
@@ -83,7 +83,7 @@ class _EarningsCardWidgetState extends State<EarningsCardWidget> {
                       Text(
                         valueOrDefault<String>(
                           widget!.date,
-                          'Today, 2:30 PM',
+                          '—',
                         ),
                         style: FlutterFlowTheme.of(context).labelSmall.override(
                               font: GoogleFonts.inter(
@@ -144,7 +144,7 @@ class _EarningsCardWidgetState extends State<EarningsCardWidget> {
                         child: LocationNodeWidget(
                           address: valueOrDefault<String>(
                             widget!.pickup,
-                            'Ikeja City Mall',
+                            '—',
                           ),
                           type: 'Pickup',
                           isPickup: true,
@@ -156,7 +156,7 @@ class _EarningsCardWidgetState extends State<EarningsCardWidget> {
                         child: LocationNodeWidget(
                           address: valueOrDefault<String>(
                             widget!.destination,
-                            'Lagos Island',
+                            '—',
                           ),
                           type: 'Drop-off',
                           isPickup: false,

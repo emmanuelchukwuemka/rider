@@ -13,8 +13,8 @@ class RecentPlaceItem2Widget extends StatefulWidget {
     super.key,
     String? address,
     String? title,
-  })  : this.address = address ?? '88 Corporate Plaza, Financial District',
-        this.title = title ?? 'Work Office';
+  })  : this.address = address ?? '—',
+        this.title = title ?? '—';
 
   final String address;
   final String title;
@@ -81,7 +81,7 @@ class _RecentPlaceItem2WidgetState extends State<RecentPlaceItem2Widget> {
                 Text(
                   valueOrDefault<String>(
                     widget!.title,
-                    'Work Office',
+                    '—',
                   ),
                   maxLines: 1,
                   style: FlutterFlowTheme.of(context).bodyMedium.override(
@@ -102,7 +102,7 @@ class _RecentPlaceItem2WidgetState extends State<RecentPlaceItem2Widget> {
                 Text(
                   valueOrDefault<String>(
                     widget!.address,
-                    '88 Corporate Plaza, Financial District',
+                    '—',
                   ),
                   maxLines: 1,
                   style: FlutterFlowTheme.of(context).bodySmall.override(

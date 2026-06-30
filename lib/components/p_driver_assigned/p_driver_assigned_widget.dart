@@ -122,7 +122,7 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
-                          '2 min',
+                          '—',
                           style: FlutterFlowTheme.of(context)
                               .titleLarge
                               .override(
@@ -142,7 +142,7 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                               ),
                         ),
                         Text(
-                          'Away',
+                          'ETA',
                           style: FlutterFlowTheme.of(context)
                               .labelSmall
                               .override(
@@ -239,7 +239,7 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'John Doe',
+                                    '—',
                                     style: FlutterFlowTheme.of(context)
                                         .titleMedium
                                         .override(
@@ -280,7 +280,7 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                                         size: 16.0,
                                       ),
                                       Text(
-                                        '4.9 • 1,240 trips',
+                                        '—',
                                         style: FlutterFlowTheme.of(context)
                                             .bodySmall
                                             .override(
@@ -343,7 +343,7 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Toyota Camry',
+                                        '—',
                                         style: FlutterFlowTheme.of(context)
                                             .bodyMedium
                                             .override(
@@ -367,7 +367,7 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                                             ),
                                       ),
                                       Text(
-                                        'ABC-123',
+                                        '—',
                                         style: FlutterFlowTheme.of(context)
                                             .labelLarge
                                             .override(
@@ -462,7 +462,9 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                                   size: 24.0,
                                 ),
                                 onPressed: () {
-                                  print('IconButton pressed ...');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Driver contact is available in the ride screen')),
+                                  );
                                 },
                               ),
                             ),
@@ -477,9 +479,9 @@ class _PDriverAssignedWidgetState extends State<PDriverAssignedWidget> {
                               model: _model.journeyStepModel1,
                               updateCallback: () => safeSetState(() {}),
                               child: JourneyStepWidget(
-                                address: '123 Driver Current Loc',
+                                address: '—',
                                 hasNext: true,
-                                stepName: 'Driver Location',
+                                stepName: '—',
                                 active: true,
                               ),
                             ),

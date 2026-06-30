@@ -91,9 +91,7 @@ class _NewScreen5WidgetState extends State<NewScreen5Widget> {
                                         .primaryText,
                                     size: 24.0,
                                   ),
-                                  onPressed: () {
-                                    print('IconButton pressed ...');
-                                  },
+                                  onPressed: () => context.safePop(),
                                 ),
                                 Text(
                                   'Choose a ride',
@@ -248,7 +246,7 @@ class _NewScreen5WidgetState extends State<NewScreen5Widget> {
                                               ),
                                         ),
                                         Text(
-                                          '₦2000',
+                                          '—',
                                           style: FlutterFlowTheme.of(context)
                                               .titleMedium
                                               .override(
@@ -286,7 +284,7 @@ class _NewScreen5WidgetState extends State<NewScreen5Widget> {
                                           size: 14.0,
                                         ),
                                         Text(
-                                          '3 mins away',
+                                          '—',
                                           style: FlutterFlowTheme.of(context)
                                               .bodySmall
                                               .override(

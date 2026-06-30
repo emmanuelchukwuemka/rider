@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="QuickDrop"
@@ -61,7 +62,7 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyBxfvdzTRzp_I7ce4KOg7ZX8ZcJntgUbhM"/>
+        <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyAMK0gm6FqImxY1oLDQ72UcTuZzybFl7Lw"/>
 
 
 

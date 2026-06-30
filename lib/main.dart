@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'auth/custom_auth/custom_auth_user_provider.dart';
 import 'auth/base_auth_user_provider.dart';
@@ -12,20 +14,43 @@ import 'auth/custom_auth/auth_util.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/nav/nav.dart';
+import 'firebase_options.dart';
 import 'index.dart';
+
+// Handle FCM messages when the app is completely terminated
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   GoRouter.optionURLReflectsImperativeAPIs = true;
   usePathUrlStrategy();
 
-  // Initialise Supabase (replaces Firebase init)
-  
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('[Firebase] Init failed: $e');
+  }
+
   // Load any persisted auth data
-  await loadAuthData();
+  try {
+    await loadAuthData();
+  } catch (e) {
+    debugPrint('[Auth] loadAuthData failed: $e');
+  }
 
   final appState = FFAppState();
-  await appState.initializePersistedState();
+  try {
+    await appState.initializePersistedState();
+  } catch (e) {
+    debugPrint('[AppState] initializePersistedState failed: $e');
+  }
 
   runApp(ChangeNotifierProvider(
     create: (context) => appState,
@@ -80,7 +105,6 @@ class _MyAppState extends State<MyApp> {
     _appStateNotifier = AppStateNotifier.instance;
     _router = createRouter(_appStateNotifier);
 
-    // Listen to Supabase auth state changes
     userStream = QuickDropCustomUserStream()
       ..listen((user) {
         currentUser = user.loggedIn ? user : null;
@@ -92,6 +116,22 @@ class _MyAppState extends State<MyApp> {
       const Duration(milliseconds: 1000),
       () => _appStateNotifier.stopShowingSplashImage(),
     );
+
+    // Handle FCM notification tap from a terminated (cold-start) app
+    try {
+      FirebaseMessaging.instance.getInitialMessage().then((message) {
+        if (message == null) return;
+        final rideId = message.data['rideId'] ?? '';
+        if (rideId.isNotEmpty) {
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            _router.pushNamed('IncomingRiderequest7',
+                queryParameters: {'rideId': rideId});
+          });
+        }
+      }).catchError((e) => debugPrint('[FCM] getInitialMessage error: $e'));
+    } catch (e) {
+      debugPrint('[FCM] Firebase not available: $e');
+    }
   }
 
   @override

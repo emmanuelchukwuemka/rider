@@ -15,7 +15,9 @@ import 'driver_document_upload1_model.dart';
 export 'driver_document_upload1_model.dart';
 
 class DriverDocumentUpload1Widget extends StatefulWidget {
-  const DriverDocumentUpload1Widget({super.key});
+  const DriverDocumentUpload1Widget({super.key, this.nextRoute = ''});
+
+  final String nextRoute;
 
   static String routeName = 'DriverDocumentUpload1';
   static String routePath = '/driverDocumentUpload1';
@@ -74,8 +76,13 @@ class _DriverDocumentUpload1WidgetState
     }
 
     setState(() => _isUploading = false);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Documents uploaded successfully!')));
-    context.pop();
+    if (widget.nextRoute.isNotEmpty) {
+      context.pushNamed(widget.nextRoute);
+    } else {
+      context.pop();
+    }
   }
 
   @override

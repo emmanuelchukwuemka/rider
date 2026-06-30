@@ -82,9 +82,7 @@ class _PScheduleRideWidgetState extends State<PScheduleRideWidget> {
                                 color: FlutterFlowTheme.of(context).primaryText,
                                 size: 24.0,
                               ),
-                              onPressed: () {
-                                print('IconButton pressed ...');
-                              },
+                              onPressed: () => context.safePop(),
                             ),
                             Expanded(
                               flex: 1,
@@ -175,7 +173,7 @@ class _PScheduleRideWidgetState extends State<PScheduleRideWidget> {
                                       helper: '',
                                       helperPresent: false,
                                       hint: 'Current Location',
-                                      value: '123 Tech Hub, Downtown',
+                                      value: '',
                                       leadingIconPresent: false,
                                       trailingIconPresent: false,
                                       maxLines: 4,
@@ -346,7 +344,7 @@ class _PScheduleRideWidgetState extends State<PScheduleRideWidget> {
                                               ),
                                         ),
                                         Text(
-                                          'Oct 24, 2023',
+                                          '—',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(
@@ -445,7 +443,7 @@ class _PScheduleRideWidgetState extends State<PScheduleRideWidget> {
                                               ),
                                         ),
                                         Text(
-                                          '09:30 AM',
+                                          '—',
                                           style: FlutterFlowTheme.of(context)
                                               .bodyMedium
                                               .override(

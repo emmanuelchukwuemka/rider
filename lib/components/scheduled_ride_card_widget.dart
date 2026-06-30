@@ -17,17 +17,21 @@ class ScheduledRideCardWidget extends StatefulWidget {
     String? fare,
     String? pickup,
     String? status,
-  })  : this.dateTime = dateTime ?? 'Yesterday, 4:30 PM',
-        this.destination = destination ?? 'Airport Terminal 2',
-        this.fare = fare ?? '₦4,500',
-        this.pickup = pickup ?? '123 Maple St',
-        this.status = status ?? 'Completed';
+    this.rideId = '',
+    this.onAccept,
+  })  : this.dateTime = dateTime ?? '—',
+        this.destination = destination ?? '—',
+        this.fare = fare ?? '—',
+        this.pickup = pickup ?? '—',
+        this.status = status ?? 'Pending';
 
   final String dateTime;
   final String destination;
   final String fare;
   final String pickup;
   final String status;
+  final String rideId;
+  final VoidCallback? onAccept;
 
   @override
   State<ScheduledRideCardWidget> createState() =>
@@ -113,7 +117,7 @@ class _ScheduledRideCardWidgetState extends State<ScheduledRideCardWidget> {
                                       size: 16.0,
                                     ),
                                     Text(
-                                      'Yesterday, 4:30 PM',
+                                      widget!.dateTime,
                                       style: FlutterFlowTheme.of(context)
                                           .labelLarge
                                           .override(
@@ -151,7 +155,7 @@ class _ScheduledRideCardWidgetState extends State<ScheduledRideCardWidget> {
                       Text(
                         valueOrDefault<String>(
                           widget!.fare,
-                          '₦4,500',
+                          '—',
                         ),
                         style:
                             FlutterFlowTheme.of(context).titleMedium.override(
@@ -200,7 +204,7 @@ class _ScheduledRideCardWidgetState extends State<ScheduledRideCardWidget> {
                             child: Text(
                               valueOrDefault<String>(
                                 widget!.pickup,
-                                '123 Maple St',
+                                '—',
                               ),
                               maxLines: 1,
                               style: FlutterFlowTheme.of(context)
@@ -259,7 +263,7 @@ class _ScheduledRideCardWidgetState extends State<ScheduledRideCardWidget> {
                             child: Text(
                               valueOrDefault<String>(
                                 widget!.destination,
-                                'Airport Terminal 2',
+                                '—',
                               ),
                               maxLines: 1,
                               style: FlutterFlowTheme.of(context)
@@ -303,47 +307,72 @@ class _ScheduledRideCardWidgetState extends State<ScheduledRideCardWidget> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        valueOrDefault<String>(
-                          widget!.status,
-                          'Completed',
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: widget!.status.toLowerCase() == 'pending'
+                              ? FlutterFlowTheme.of(context).warning
+                                  .withOpacity(0.15)
+                              : FlutterFlowTheme.of(context).success
+                                  .withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        style:
-                            FlutterFlowTheme.of(context).labelMedium.override(
-                                  font: GoogleFonts.inter(
-                                    fontWeight: FlutterFlowTheme.of(context)
-                                        .labelMedium
-                                        .fontWeight,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .labelMedium
-                                        .fontStyle,
-                                  ),
-                                  color: FlutterFlowTheme.of(context).success,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FlutterFlowTheme.of(context)
-                                      .labelMedium
-                                      .fontWeight,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .labelMedium
-                                      .fontStyle,
-                                  lineHeight: 1.3,
-                                ),
-                      ),
-                      wrapWithModel(
-                        model: _model.buttonModel,
-                        updateCallback: () => safeSetState(() {}),
-                        child: Button12Widget(
-                          content: 'Details',
-                          iconPresent: false,
-                          iconEndPresent: false,
-                          color: FlutterFlowTheme.of(context).secondaryText,
-                          variant: 'ghost',
-                          size: 'small',
-                          fullWidth: false,
-                          loading: false,
-                          disabled: false,
+                        child: Text(
+                          widget!.status.isNotEmpty
+                              ? widget!.status[0].toUpperCase() +
+                                  widget!.status.substring(1)
+                              : 'Pending',
+                          style: FlutterFlowTheme.of(context)
+                              .labelSmall
+                              .override(
+                                font: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600),
+                                color: widget!.status.toLowerCase() == 'pending'
+                                    ? FlutterFlowTheme.of(context).warning
+                                    : FlutterFlowTheme.of(context).success,
+                                letterSpacing: 0.0,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                       ),
+                      if (widget!.status.toLowerCase() == 'pending' &&
+                          widget!.onAccept != null)
+                        GestureDetector(
+                          onTap: widget!.onAccept,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: FlutterFlowTheme.of(context).primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Accept',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        wrapWithModel(
+                          model: _model.buttonModel,
+                          updateCallback: () => safeSetState(() {}),
+                          child: Button12Widget(
+                            content: 'Details',
+                            iconPresent: false,
+                            iconEndPresent: false,
+                            color: FlutterFlowTheme.of(context).secondaryText,
+                            variant: 'ghost',
+                            size: 'small',
+                            fullWidth: false,
+                            loading: false,
+                            disabled: false,
+                          ),
+                        ),
                     ],
                   ),
                 ].divide(SizedBox(height: 16.0)),

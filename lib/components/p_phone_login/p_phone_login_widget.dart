@@ -1,3 +1,4 @@
+
 import '/auth/custom_auth/auth_util.dart';
 import '/backend/api_service.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -65,23 +66,29 @@ class _PPhoneLoginWidgetState extends State<PPhoneLoginWidget> {
         serverClientId: '1030140401902-a49fkqor2osrda84blak1eohmlebpaul.apps.googleusercontent.com',
         scopes: ['email', 'profile'],
       );
-      final account = await googleSignIn.signIn();
-      if (account == null) {
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
         setState(() => _googleLoading = false);
         return;
       }
-      final auth = await account.authentication;
+      final auth = await googleUser.authentication;
       final idToken = auth.idToken;
       if (idToken == null) {
-        throw Exception('Could not get ID token. Make sure Google Sign-In is enabled in Firebase Console.');
+        throw Exception('Could not get Google ID token — check SHA-1 is registered in Firebase console');
       }
-      final result = await googleLogin(idToken);
+      final result = await googleLogin(idToken, displayName: googleUser.displayName);
       if (result == null || result.containsKey('error')) {
-        throw Exception(result?['error'] ?? 'Google sign-in failed');
+        throw Exception(result?['error']?.toString() ?? 'Google sign-in failed');
       }
       final token = result['token'] as String;
       final user = result['user'] as Map<String, dynamic>;
-      await saveAuthData(token, user['uid'] ?? user['_id'] ?? '', user['email'] ?? account.email);
+      await saveAuthData(
+        token,
+        user['id']?.toString() ?? user['uid']?.toString() ?? '',
+        user['email']?.toString() ?? googleUser.email,
+        displayName: user['display_name']?.toString() ?? googleUser.displayName ?? '',
+        phoneNumber: user['phone_number']?.toString(),
+      );
       if (mounted) {
         context.goNamed(PassengersDashboardnewWidget.routeName);
       }

@@ -36,27 +36,17 @@ class _ConfirmPhoneNumberPageWidgetState
   late ConfirmPhoneNumberPageModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _canResend = false;
+  bool _isVerifying = false;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => ConfirmPhoneNumberPageModel());
 
-    // On page load action.
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       _model.timerController.onStartTimer();
-      if (widget.email.isNotEmpty) {
-        final result = await requestLoginOtp(widget.email);
-        if (mounted && result['debug_otp'] != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Your OTP code: ${result['debug_otp']}'),
-              duration: Duration(seconds: 30),
-              backgroundColor: FlutterFlowTheme.of(context).primary,
-            ),
-          );
-        }
-      }
+      await _sendOtp();
     });
 
     _model.pinCodeFocusNode ??= FocusNode();
@@ -64,10 +54,72 @@ class _ConfirmPhoneNumberPageWidgetState
     WidgetsBinding.instance.addPostFrameCallback((_) => safeSetState(() {}));
   }
 
+  Future<void> _sendOtp() async {
+    if (widget.email.isEmpty) return;
+    final result = await requestLoginOtp(widget.email);
+    if (!mounted) return;
+    setState(() => _canResend = false);
+    _model.timerController.onResetTimer();
+    _model.timerController.onStartTimer();
+
+    final debugOtp = result['debug_otp']?.toString();
+    if (debugOtp != null && debugOtp.isNotEmpty) {
+      // Email delivery failed — show OTP in a dialog so user can't miss it
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Your OTP Code'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Email delivery failed. Use this code:',
+                style: GoogleFonts.inter(fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: FlutterFlowTheme.of(ctx).primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: FlutterFlowTheme.of(ctx).primary),
+                ),
+                child: Text(
+                  debugOtp,
+                  style: GoogleFonts.inter(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 8,
+                    color: FlutterFlowTheme.of(ctx).primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK, I have it'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Email was sent — remind user to check spam
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('OTP sent! Check your inbox and spam folder.'),
+          duration: const Duration(seconds: 6),
+          backgroundColor: FlutterFlowTheme.of(context).success,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _model.dispose();
-
     super.dispose();
   }
 
@@ -281,6 +333,20 @@ class _ConfirmPhoneNumberPageWidgetState
                                   mainAxisAlignment: MainAxisAlignment.start,
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
+                                    if (_canResend)
+                                      GestureDetector(
+                                        onTap: _sendOtp,
+                                        child: Text(
+                                          'Resend Code',
+                                          style: FlutterFlowTheme.of(context).bodySmall.override(
+                                                font: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                                                color: FlutterFlowTheme.of(context).primary,
+                                                letterSpacing: 0.0,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                      )
+                                    else
                                     Row(
                                       mainAxisSize: MainAxisSize.max,
                                       mainAxisAlignment:
@@ -337,9 +403,8 @@ class _ConfirmPhoneNumberPageWidgetState
                                             if (shouldUpdate)
                                               safeSetState(() {});
                                           },
-                                          onEnded: () async {
-                                            _model.timerController
-                                                .onStartTimer();
+                                          onEnded: () {
+                                            if (mounted) setState(() => _canResend = true);
                                           },
                                           textAlign: TextAlign.start,
                                           style: FlutterFlowTheme.of(context)
@@ -376,27 +441,33 @@ class _ConfirmPhoneNumberPageWidgetState
                               ].divide(SizedBox(height: 24.0)),
                             ),
                             FFButtonWidget(
-                              onPressed: () async {
+                              onPressed: _isVerifying ? null : () async {
                                 final code = _model.pinCodeController!.text;
                                 if (code.length != 6) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Please enter a valid code.')),
+                                    const SnackBar(content: Text('Please enter a valid code.')),
                                   );
                                   return;
                                 }
-
+                                setState(() => _isVerifying = true);
                                 final result = await verifyLoginOtp(widget.email, code, 'passenger');
+                                if (!mounted) return;
+                                setState(() => _isVerifying = false);
                                 if (result != null && result['token'] != null) {
-                                  final userId = result['user']?['id'] ?? result['accountId'] ?? '';
-                                  await saveAuthData(result['token'], userId, widget.email);
-                                  context.pushNamed(Page5EnableLocationWidget.routeName);
+                                  final user = result['user'] as Map<String, dynamic>? ?? {};
+                                  final userId = user['id']?.toString() ?? user['uid']?.toString() ?? '';
+                                  final displayName = user['display_name']?.toString();
+                                  final phoneNumber = user['phone_number']?.toString();
+                                  await saveAuthData(result['token'], userId, widget.email,
+                                      displayName: displayName, phoneNumber: phoneNumber);
+                                  context.pushNamed(PassengersDashboardnewWidget.routeName);
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Invalid code.')),
+                                    const SnackBar(content: Text('Invalid code. Please try again.')),
                                   );
                                 }
                               },
-                              text: 'Verify Code',
+                              text: _isVerifying ? 'Verifying…' : 'Verify Code',
                               options: FFButtonOptions(
                                 width: double.infinity,
                                 height: 40.0,

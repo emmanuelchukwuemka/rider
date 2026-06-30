@@ -84,9 +84,7 @@ class _PSetDestinationWidgetState extends State<PSetDestinationWidget> {
                               color: FlutterFlowTheme.of(context).primaryText,
                               size: 24.0,
                             ),
-                            onPressed: () {
-                              print('IconButton pressed ...');
-                            },
+                            onPressed: () => context.safePop(),
                           ),
                           Text(
                             'Plan Your Trip',
@@ -176,7 +174,7 @@ class _PSetDestinationWidgetState extends State<PSetDestinationWidget> {
                                           helper: '',
                                           helperPresent: false,
                                           hint: 'Type here...',
-                                          value: '123 Driver Way, Tech City',
+                                          value: '',
                                           leadingIcon: Icon(
                                             Icons.help,
                                             color: FlutterFlowTheme.of(context)
@@ -273,291 +271,15 @@ class _PSetDestinationWidgetState extends State<PSetDestinationWidget> {
                                       title: 'Saved Places',
                                     ),
                                   ),
-                                  wrapWithModel(
-                                    model: _model.locationEntryModel1,
-                                    updateCallback: () => safeSetState(() {}),
-                                    child: LocationEntryWidget(
-                                      address: '456 Maple Avenue, Springfield',
-                                      type: 'Home',
-                                      isLast: false,
-                                      isPickup: false,
-                                    ),
-                                  ),
-                                  wrapWithModel(
-                                    model: _model.locationEntryModel2,
-                                    updateCallback: () => safeSetState(() {}),
-                                    child: LocationEntryWidget(
-                                      address: '890 Innovation Blvd, Suite 200',
-                                      type: 'Work',
-                                      isLast: false,
-                                      isPickup: false,
-                                    ),
-                                  ),
-                                  wrapWithModel(
-                                    model: _model.locationEntryModel3,
-                                    updateCallback: () => safeSetState(() {}),
-                                    child: LocationEntryWidget(
-                                      address: '12 Fitness Lane, Downtown',
-                                      type: 'Gym',
-                                      isLast: true,
-                                      isPickup: false,
-                                    ),
-                                  ),
-                                ].divide(SizedBox(height: 16.0)),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
                                   Text(
-                                    'Recent Searches',
+                                    'No saved places yet.',
                                     style: FlutterFlowTheme.of(context)
-                                        .labelLarge
+                                        .bodyMedium
                                         .override(
-                                          font: GoogleFonts.inter(
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .labelLarge
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .labelLarge
-                                                    .fontStyle,
-                                          ),
+                                          font: GoogleFonts.inter(),
                                           color: FlutterFlowTheme.of(context)
                                               .secondaryText,
-                                          letterSpacing: 0.0,
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .labelLarge
-                                                  .fontWeight,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .labelLarge
-                                                  .fontStyle,
-                                          lineHeight: 1.3,
                                         ),
-                                  ),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.max,
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.history_rounded,
-                                        color: FlutterFlowTheme.of(context)
-                                            .onSurface,
-                                        size: 22.0,
-                                      ),
-                                      Expanded(
-                                        flex: 1,
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Central Station',
-                                              maxLines: 1,
-                                              style:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font: GoogleFonts.inter(
-                                                          fontWeight:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontWeight,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .primaryText,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontWeight,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                        lineHeight: 1.47,
-                                                      ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            Text(
-                                              'Terminal 2, West Side',
-                                              style:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodySmall
-                                                      .override(
-                                                        font: GoogleFonts.inter(
-                                                          fontWeight:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodySmall
-                                                                  .fontWeight,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodySmall
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .secondaryText,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodySmall
-                                                                .fontWeight,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodySmall
-                                                                .fontStyle,
-                                                        lineHeight: 1.4,
-                                                      ),
-                                            ),
-                                          ].divide(SizedBox(height: 4.0)),
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.chevron_right_rounded,
-                                        color: FlutterFlowTheme.of(context)
-                                            .onSurface,
-                                        size: 24.0,
-                                      ),
-                                    ].divide(SizedBox(width: 16.0)),
-                                  ),
-                                  Divider(
-                                    height: 16.0,
-                                    thickness: 1.0,
-                                    indent: 0.0,
-                                    endIndent: 0.0,
-                                    color:
-                                        FlutterFlowTheme.of(context).alternate,
-                                  ),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.max,
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.history_rounded,
-                                        color: FlutterFlowTheme.of(context)
-                                            .onSurface,
-                                        size: 22.0,
-                                      ),
-                                      Expanded(
-                                        flex: 1,
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'City Mall',
-                                              maxLines: 1,
-                                              style:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font: GoogleFonts.inter(
-                                                          fontWeight:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontWeight,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .primaryText,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontWeight,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                        lineHeight: 1.47,
-                                                      ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            Text(
-                                              'Main Entrance, North Wing',
-                                              style:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodySmall
-                                                      .override(
-                                                        font: GoogleFonts.inter(
-                                                          fontWeight:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodySmall
-                                                                  .fontWeight,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodySmall
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .secondaryText,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodySmall
-                                                                .fontWeight,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodySmall
-                                                                .fontStyle,
-                                                        lineHeight: 1.4,
-                                                      ),
-                                            ),
-                                          ].divide(SizedBox(height: 4.0)),
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.chevron_right_rounded,
-                                        color: FlutterFlowTheme.of(context)
-                                            .onSurface,
-                                        size: 24.0,
-                                      ),
-                                    ].divide(SizedBox(width: 16.0)),
                                   ),
                                 ].divide(SizedBox(height: 16.0)),
                               ),

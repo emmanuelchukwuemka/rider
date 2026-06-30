@@ -1,8 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/backend/backend.dart';
-import '/backend/schema/enums/enums.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '/backend/api_service.dart';
 import '/backend/socket_service.dart';
 import '/flutter_flow/flutter_flow_google_map.dart';
@@ -29,12 +28,45 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
   bool _isTogglingOnline = false;
   bool? _isOnline; // local optimistic state; null = not yet initialised from API
 
+  // Driver stats loaded directly from API
+  String _driverName = '';
+  double _walletBalance = 0.0;
+  int _totalTrips = 0;
+  String _driverRating = '—';
+
+  // Sheet snap sizes
+  static const double _sheetPeek    = 0.20; // handle + button peek
+  static const double _sheetDefault = 0.44; // button + quick actions visible
+  static const double _sheetFull    = 0.72; // everything visible
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => DriverDashboard6Model());
 
     SocketService().initSocket(currentUserUid, 'driver');
+
+    // Register FCM token so backend can push ride notifications when app is closed
+    _registerFcmToken();
+
+    // Handle FCM tap when app is in foreground
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final rideId = message.data['rideId'] ?? '';
+      if (rideId.isNotEmpty && mounted) {
+        context.pushNamed('IncomingRiderequest7',
+            queryParameters: {'rideId': rideId});
+      }
+    });
+
+    // Handle FCM tap when app was in background
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      final rideId = message.data['rideId'] ?? '';
+      if (rideId.isNotEmpty && mounted) {
+        context.pushNamed('IncomingRiderequest7',
+            queryParameters: {'rideId': rideId});
+      }
+    });
+
     SocketService().onNewRideOffer = (data) {
       if (data != null && data['ride'] != null) {
         context.pushNamed(
@@ -46,6 +78,31 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
 
     getCurrentUserLocation(defaultLocation: const LatLng(0.0, 0.0), cached: true)
         .then((loc) => safeSetState(() => _currentLocation = loc));
+
+    _loadDriverData();
+
+    // Check for rides that came in before this session (e.g. booked while driver was logged out)
+    Future.delayed(const Duration(seconds: 2), _checkPendingRides);
+  }
+
+  Future<void> _loadDriverData() async {
+    if (currentUserUid.isEmpty) return;
+    final data = await fetchDriverById(currentUserUid);
+    if (!mounted || data == null) return;
+    final name = data['display_name']?.toString() ?? data['name']?.toString() ?? '';
+    final online = data['is_online']?.toString().toLowerCase();
+    final balance = double.tryParse(data['wallet_balance']?.toString() ?? '0') ?? 0.0;
+    final trips = int.tryParse(data['total_trips']?.toString() ?? '0') ?? 0;
+    final rating = double.tryParse(data['driver_rating']?.toString() ?? '0') ?? 0.0;
+    setState(() {
+      _driverName = name;
+      _walletBalance = balance;
+      _totalTrips = trips;
+      _driverRating = rating > 0 ? rating.toStringAsFixed(1) : '—';
+      if (_isOnline == null && online != null) {
+        _isOnline = online == 'online';
+      }
+    });
   }
 
   @override
@@ -64,8 +121,43 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
   String _formattedDate() {
     final now = DateTime.now();
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
+  }
+
+  Future<void> _registerFcmToken() async {
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(alert: true, sound: true, badge: true);
+      final token = await messaging.getToken();
+      if (token != null && currentUserUid.isNotEmpty) {
+        await updateDriverFcmToken(currentUserUid, token);
+      }
+    } catch (e) {
+      print('[FCM] Token registration failed: $e');
+    }
+  }
+
+  Future<void> _checkPendingRides() async {
+    if (!mounted) return;
+    final rides = await fetchPendingRides();
+    if (!mounted || rides.isEmpty) return;
+    // Skip rides the driver already dismissed or declined this session
+    final dismissed = SocketService().dismissedRideIds;
+    final ride = rides.firstWhere(
+      (r) {
+        final id = r['_id']?.toString() ?? r['id']?.toString() ?? '';
+        return id.isNotEmpty && !dismissed.contains(id);
+      },
+      orElse: () => {},
+    );
+    if (ride.isEmpty) return;
+    final rideId = ride['_id']?.toString() ?? ride['id']?.toString();
+    if (rideId != null && rideId.isNotEmpty && mounted) {
+      context.pushNamed('IncomingRiderequest7',
+          queryParameters: {'rideId': rideId});
+    }
   }
 
   Future<void> _toggleOnline() async {
@@ -73,14 +165,15 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
     final newStatus = !(_isOnline ?? false);
     setState(() {
       _isTogglingOnline = true;
-      _isOnline = newStatus; // optimistic update — UI flips instantly
+      _isOnline = newStatus;
     });
     try {
       await updateDriverProfile(currentUserUid, {
         'is_online': newStatus ? 'Online' : 'Offline',
       });
+      // When going online, immediately check if any rides are already waiting
+      if (newStatus) _checkPendingRides();
     } catch (_) {
-      // revert on failure
       if (mounted) setState(() => _isOnline = !newStatus);
     } finally {
       if (mounted) setState(() => _isTogglingOnline = false);
@@ -100,32 +193,18 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
       );
     }
 
-    return StreamBuilder<List<UserDriverRecord>>(
-      stream: queryCurrentDriverRecord(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Scaffold(
-            backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-            body: Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(FlutterFlowTheme.of(context).primary),
-              ),
-            ),
-          );
-        }
-
-        final driver = snapshot.data!.isNotEmpty ? snapshot.data!.first : null;
-        // Seed local state once from API; after that _isOnline owns the value
-        if (_isOnline == null && driver != null) {
-          _isOnline = driver.isOnline == OnlineStatus.Online;
-        }
-        final isOnline = _isOnline ?? false;
-        final fullName = (driver?.displayName?.isNotEmpty == true ? driver!.displayName : null) ?? (currentUserDisplayName.isNotEmpty ? currentUserDisplayName : 'Driver');
-        final firstName = fullName.split(' ').first;
-        final walletBalance = driver?.walletBalance?.toStringAsFixed(2) ?? '0.00';
-        final totalTrips = driver?.totalTrips ?? 0;
-        final rating = driver?.driverRating?.toStringAsFixed(1) ?? '5.0';
-        final theme = FlutterFlowTheme.of(context);
+    {
+        final isOnline      = _isOnline ?? false;
+        final fullName      = _driverName.isNotEmpty
+                              ? _driverName
+                              : (currentUserDisplayName.isNotEmpty
+                                  ? currentUserDisplayName
+                                  : 'Driver');
+        final firstName     = fullName.split(' ').first;
+        final walletBalance = _walletBalance;
+        final totalTrips    = _totalTrips;
+        final rating        = _driverRating;
+        final theme         = FlutterFlowTheme.of(context);
 
         return GestureDetector(
           onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -158,11 +237,9 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                   ),
                 ),
 
-                // ── Header overlay ───────────────────────────────────────
+                // ── Frosted glass header ─────────────────────────────────
                 Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
+                  top: 0, left: 0, right: 0,
                   child: SafeArea(
                     bottom: false,
                     child: ClipRect(
@@ -173,12 +250,11 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                           padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
                           child: Row(
                             children: [
-                              // Avatar initials
+                              // Avatar
                               GestureDetector(
                                 onTap: () => context.pushNamed('DriverEditProfile'),
                                 child: Container(
-                                  width: 42,
-                                  height: 42,
+                                  width: 42, height: 42,
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
@@ -196,9 +272,7 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                                     ],
                                   ),
                                   child: Text(
-                                    firstName.isNotEmpty
-                                        ? firstName[0].toUpperCase()
-                                        : 'D',
+                                    firstName.isNotEmpty ? firstName[0].toUpperCase() : 'D',
                                     style: GoogleFonts.inter(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -234,11 +308,10 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                                   ],
                                 ),
                               ),
-                              // Online/offline status pill
+                              // Online/offline pill
                               AnimatedContainer(
                                 duration: const Duration(milliseconds: 300),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 5),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
                                   color: isOnline
                                       ? const Color(0xFF22C55E).withOpacity(0.14)
@@ -254,8 +327,7 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
-                                      width: 7,
-                                      height: 7,
+                                      width: 7, height: 7,
                                       decoration: BoxDecoration(
                                         color: isOnline
                                             ? const Color(0xFF22C55E)
@@ -278,18 +350,20 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              // Notification bell
                               IconButton(
-                                onPressed: () {},
-                                icon: Icon(
-                                  Icons.notifications_none_rounded,
-                                  color: theme.primaryText,
-                                  size: 22,
-                                ),
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('No new notifications'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                icon: Icon(Icons.notifications_none_rounded,
+                                    color: theme.primaryText, size: 22),
                                 splashRadius: 20,
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                    minWidth: 36, minHeight: 36),
+                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                               ),
                             ],
                           ),
@@ -299,185 +373,52 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                   ),
                 ),
 
-                // ── Bottom panel ─────────────────────────────────────────
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: theme.primaryBackground,
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(24)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.14),
-                          blurRadius: 20,
-                          offset: const Offset(0, -4),
-                        ),
-                      ],
-                    ),
-                    child: SafeArea(
-                      top: false,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                // ── Draggable bottom sheet ───────────────────────────────
+                DraggableScrollableSheet(
+                  initialChildSize: _sheetDefault,
+                  minChildSize: _sheetPeek,
+                  maxChildSize: _sheetFull,
+                  snap: true,
+                  snapSizes: const [_sheetPeek, _sheetDefault, _sheetFull],
+                  builder: (context, scrollController) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: theme.primaryBackground,
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.14),
+                            blurRadius: 20,
+                            offset: const Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      child: ListView(
+                        controller: scrollController,
+                        padding: EdgeInsets.zero,
+                        physics: const ClampingScrollPhysics(),
                         children: [
-                          // Drag handle
-                          Container(
-                            margin: const EdgeInsets.only(top: 10, bottom: 4),
-                            width: 36,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: theme.alternate,
-                              borderRadius: BorderRadius.circular(2),
+                          // ── Drag handle ────────────────────────────────
+                          Center(
+                            child: Container(
+                              margin: const EdgeInsets.only(top: 10, bottom: 6),
+                              width: 36, height: 4,
+                              decoration: BoxDecoration(
+                                color: theme.alternate,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
                           ),
+
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // ── Earnings + mini stats ─────────────────
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Earnings gradient card
-                                    Expanded(
-                                      flex: 3,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              theme.primary,
-                                              theme.primary.withOpacity(0.72),
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: theme.primary
-                                                  .withOpacity(0.28),
-                                              blurRadius: 12,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              "Today's Earnings",
-                                              style: GoogleFonts.inter(
-                                                color: Colors.white
-                                                    .withOpacity(0.75),
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '\$0.00',
-                                              style: GoogleFonts.inter(
-                                                color: Colors.white,
-                                                fontSize: 28,
-                                                fontWeight: FontWeight.bold,
-                                                height: 1.1,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.directions_car_rounded,
-                                                  color: Colors.white54,
-                                                  size: 12,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  '$totalTrips trips total',
-                                                  style: GoogleFonts.inter(
-                                                    color: Colors.white54,
-                                                    fontSize: 11,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    // Mini stat cards
-                                    Expanded(
-                                      flex: 2,
-                                      child: Column(
-                                        children: [
-                                          _MiniStat(
-                                            icon: Icons.star_rounded,
-                                            value: rating,
-                                            label: 'Rating',
-                                            iconColor:
-                                                const Color(0xFFF59E0B),
-                                            bgColor: const Color(0xFFF59E0B)
-                                                .withOpacity(0.1),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _MiniStat(
-                                            icon: Icons
-                                                .account_balance_wallet_rounded,
-                                            value: '\$$walletBalance',
-                                            label: 'Wallet',
-                                            iconColor: theme.primary,
-                                            bgColor: theme.primary10,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-
-                                // ── Quick actions ─────────────────────────
-                                Row(
-                                  children: [
-                                    _QuickAction(
-                                      icon: Icons.history_rounded,
-                                      label: 'Rides',
-                                      onTap: () =>
-                                          context.pushNamed('DRideHistory'),
-                                    ),
-                                    _QuickAction(
-                                      icon: Icons.calendar_month_rounded,
-                                      label: 'Schedule',
-                                      onTap: () =>
-                                          context.pushNamed('DScheduledRides'),
-                                    ),
-                                    _QuickAction(
-                                      icon: Icons.payments_rounded,
-                                      label: 'Payment',
-                                      onTap: () =>
-                                          context.pushNamed('DPayment'),
-                                    ),
-                                    _QuickAction(
-                                      icon: Icons.headset_mic_rounded,
-                                      label: 'Support',
-                                      onTap: () =>
-                                          context.pushNamed('DSupport'),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-
-                                // ── Go Online / Offline button ────────────
+                                // ── Go Online / Offline ────────────────────
                                 GestureDetector(
-                                  onTap: _isTogglingOnline
-                                      ? null
-                                      : _toggleOnline,
+                                  onTap: _isTogglingOnline ? null : _toggleOnline,
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 300),
                                     width: double.infinity,
@@ -501,31 +442,25 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                                     ),
                                     child: _isTogglingOnline
                                         ? const SizedBox(
-                                            width: 22,
-                                            height: 22,
+                                            width: 22, height: 22,
                                             child: CircularProgressIndicator(
                                               color: Colors.white,
                                               strokeWidth: 2.5,
                                             ),
                                           )
                                         : Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               Icon(
                                                 isOnline
-                                                    ? Icons
-                                                        .power_settings_new_rounded
-                                                    : Icons
-                                                        .play_circle_rounded,
+                                                    ? Icons.power_settings_new_rounded
+                                                    : Icons.play_circle_rounded,
                                                 color: Colors.white,
                                                 size: 22,
                                               ),
                                               const SizedBox(width: 10),
                                               Text(
-                                                isOnline
-                                                    ? 'Go Offline'
-                                                    : 'Go Online',
+                                                isOnline ? 'Go Offline' : 'Go Online',
                                                 style: GoogleFonts.inter(
                                                   color: Colors.white,
                                                   fontSize: 16,
@@ -537,27 +472,168 @@ class _DriverDashboard6WidgetState extends State<DriverDashboard6Widget> {
                                           ),
                                   ),
                                 ),
+                                const SizedBox(height: 16),
+
+                                // ── Quick actions ──────────────────────────
+                                Row(
+                                  children: [
+                                    _QuickAction(
+                                      icon: Icons.history_rounded,
+                                      label: 'Rides',
+                                      onTap: () => context.pushNamed('DRideHistory'),
+                                    ),
+                                    _QuickAction(
+                                      icon: Icons.calendar_month_rounded,
+                                      label: 'Schedule',
+                                      onTap: () => context.pushNamed('DScheduledRides'),
+                                    ),
+                                    _QuickAction(
+                                      icon: Icons.payments_rounded,
+                                      label: 'Payment',
+                                      onTap: () => context.pushNamed('DPayment'),
+                                    ),
+                                    _QuickAction(
+                                      icon: Icons.headset_mic_rounded,
+                                      label: 'Support',
+                                      onTap: () => context.pushNamed('DSupport'),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+
+                                // ── Section label ──────────────────────────
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Your Stats',
+                                    style: GoogleFonts.inter(
+                                      color: theme.secondaryText,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // ── Earnings card + mini stats ─────────────
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Earnings gradient card
+                                    Expanded(
+                                      flex: 3,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              theme.primary,
+                                              theme.primary.withOpacity(0.72),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: theme.primary.withOpacity(0.28),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Wallet Balance',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white.withOpacity(0.75),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '₦${walletBalance.toStringAsFixed(2)}',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 26,
+                                                fontWeight: FontWeight.bold,
+                                                height: 1.1,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            GestureDetector(
+                                              onTap: () => context.pushNamed('DPayment'),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 12, vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white.withOpacity(0.2),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  'Cash Out →',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    // Mini stat cards
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        children: [
+                                          _MiniStat(
+                                            icon: Icons.star_rounded,
+                                            value: rating,
+                                            label: 'Rating',
+                                            iconColor: const Color(0xFFF59E0B),
+                                            bgColor: const Color(0xFFF59E0B).withOpacity(0.1),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _MiniStat(
+                                            icon: Icons.directions_car_rounded,
+                                            value: '$totalTrips',
+                                            label: 'Total Trips',
+                                            iconColor: theme.primary,
+                                            bgColor: theme.primary.withOpacity(0.1),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
                               ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ],
             ),
 
-            // ── Bottom navigation bar ────────────────────────────────────
             bottomNavigationBar: _BottomNav(activeIndex: 0),
           ),
         );
-      },
-    );
+    }
   }
 }
 
-// ── Shared sub-widgets ────────────────────────────────────────────────────────
+// ── Sub-widgets ───────────────────────────────────────────────────────────────
 
 class _MiniStat extends StatelessWidget {
   const _MiniStat({
@@ -587,8 +663,7 @@ class _MiniStat extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 30, height: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: bgColor,
@@ -648,8 +723,7 @@ class _QuickAction extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 46,
-              height: 46,
+              width: 46, height: 46,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: theme.secondaryBackground,
@@ -683,10 +757,14 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
     final items = [
-      (Icons.home_rounded, 'Home', () => context.pushReplacementNamed('DriverDashboard6')),
-      (Icons.insights_rounded, 'Earnings', () => context.pushNamed('DPayment')),
-      (Icons.history_rounded, 'Rides', () => context.pushNamed('DRideHistory')),
-      (Icons.person_outline_rounded, 'Profile', () => context.pushNamed('DriverEditProfile')),
+      (Icons.home_rounded, 'Home',
+          () => context.pushReplacementNamed('DriverDashboard6')),
+      (Icons.insights_rounded, 'Earnings',
+          () => context.pushNamed('DPayment')),
+      (Icons.history_rounded, 'Rides',
+          () => context.pushNamed('DRideHistory')),
+      (Icons.person_outline_rounded, 'Profile',
+          () => context.pushNamed('DriverEditProfile')),
     ];
 
     return Container(
@@ -702,68 +780,49 @@ class _BottomNav extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               for (int i = 0; i < items.length; i++)
-                _NavItem(
-                  icon: items[i].$1,
-                  label: items[i].$2,
-                  active: i == activeIndex,
+                GestureDetector(
                   onTap: items[i].$3,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: i == activeIndex
+                              ? theme.primary.withOpacity(0.12)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(
+                          items[i].$1,
+                          color: i == activeIndex
+                              ? theme.primary
+                              : theme.secondaryText,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        items[i].$2,
+                        style: GoogleFonts.inter(
+                          color: i == activeIndex
+                              ? theme.primary
+                              : theme.secondaryText,
+                          fontSize: 11,
+                          fontWeight: i == activeIndex
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = FlutterFlowTheme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: active
-                  ? theme.primary.withOpacity(0.12)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              icon,
-              color: active ? theme.primary : theme.secondaryText,
-              size: 22,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: active ? theme.primary : theme.secondaryText,
-              fontSize: 11,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ],
       ),
     );
   }

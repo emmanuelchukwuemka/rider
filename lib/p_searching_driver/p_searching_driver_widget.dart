@@ -240,7 +240,7 @@ class _PSearchingDriverWidgetState extends State<PSearchingDriverWidget> {
                                       Expanded(
                                         flex: 1,
                                         child: Text(
-                                          'Current Location • 123 Innovation Way',
+                                          '—',
                                           maxLines: 1,
                                           style: FlutterFlowTheme.of(context)
                                               .bodySmall
@@ -341,7 +341,7 @@ class _PSearchingDriverWidgetState extends State<PSearchingDriverWidget> {
                                         ].divide(SizedBox(width: 8.0)),
                                       ),
                                       Text(
-                                        '₦2,400.00',
+                                        '—',
                                         style: FlutterFlowTheme.of(context)
                                             .titleMedium
                                             .override(

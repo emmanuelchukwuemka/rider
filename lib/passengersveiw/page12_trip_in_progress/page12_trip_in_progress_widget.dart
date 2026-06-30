@@ -12,7 +12,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '/backend/api_service.dart';
 import '/backend/socket_service.dart';
 import '/auth/custom_auth/auth_util.dart';
-import '/components/in_app_call/in_app_call_widget.dart';
 import '/components/in_app_chat/in_app_chat_widget.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
@@ -294,8 +293,8 @@ class _Page12TripInProgressWidgetState
     }
 
     if (!mounted) return;
-    context.pushNamed('PTripComplete',
-        queryParameters: {'rideId': widget.rideId});
+    context.pushNamed('PRating',
+        queryParameters: {'rideId': serializeParam(widget.rideId, ParamType.String)});
   }
 
   String _initials(String name) {
@@ -556,7 +555,7 @@ class _Page12TripInProgressWidgetState
                                         color: theme.tertiary, size: 16.0),
                                     const SizedBox(width: 4.0),
                                     Text(
-                                      '5.0',
+                                      (_rideData?['driver_rating'] as num?)?.toStringAsFixed(1) ?? '—',
                                       style: theme.labelMedium.override(
                                         font: GoogleFonts.inter(),
                                         color: theme.secondaryText,
@@ -604,16 +603,11 @@ class _Page12TripInProgressWidgetState
                                 fillColor: theme.secondaryBackground,
                                 icon: Icon(Icons.call_rounded,
                                     color: theme.primary, size: 20.0),
-                                onPressed: () {
-                                  final ride = _rideData;
-                                  final passengerName = (ride?['passenger_name'] ?? 'Passenger').toString().trim();
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (_) => InAppCallWidget(
-                                      channelName: widget.rideId,
-                                      callerName: 'Driver',
-                                      receiverName: passengerName.isNotEmpty ? passengerName : 'Passenger',
-                                    ),
-                                  ));
+                                onPressed: () async {
+                                  final phone = (_rideData?['passenger_phone'] ?? '').toString().trim();
+                                  if (phone.isNotEmpty) {
+                                    await launchUrl(Uri(scheme: 'tel', path: phone));
+                                  }
                                 },
                               ),
                             ],
@@ -626,7 +620,9 @@ class _Page12TripInProgressWidgetState
                       Row(
                         children: [
                           FFButtonWidget(
-                            onPressed: () {},
+                            onPressed: () async {
+                              await launchUrl(Uri(scheme: 'tel', path: '112'));
+                            },
                             text: 'Safety',
                             options: FFButtonOptions(
                               width: 105.0,

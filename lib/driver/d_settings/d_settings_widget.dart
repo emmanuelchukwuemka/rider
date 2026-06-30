@@ -3,6 +3,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'd_settings_model.dart';
 export 'd_settings_model.dart';
 
@@ -20,10 +21,31 @@ class _DSettingsWidgetState extends State<DSettingsWidget> {
   late DSettingsModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  bool _pushNotifications = true;
+  bool _emailUpdates = false;
+  bool _locationServices = true;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => DSettingsModel());
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _pushNotifications = prefs.getBool('setting_push_notifications') ?? true;
+        _emailUpdates = prefs.getBool('setting_email_updates') ?? false;
+        _locationServices = prefs.getBool('setting_location_services') ?? true;
+      });
+    }
+  }
+
+  Future<void> _savePref(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
   }
 
   @override
@@ -40,70 +62,71 @@ class _DSettingsWidgetState extends State<DSettingsWidget> {
     required String subtitle,
     required bool isSwitch,
     required bool switchValue,
+    ValueChanged<bool>? onToggle,
+    VoidCallback? onTap,
   }) {
-    return Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          Container(
-            width: 48.0,
-            height: 48.0,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12.0),
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            Container(
+              width: 48.0,
+              height: 48.0,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              alignment: AlignmentDirectional(0.0, 0.0),
+              child: Icon(icon, color: iconColor, size: 24.0),
             ),
-            alignment: AlignmentDirectional(0.0, 0.0),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 24.0,
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 0.0, 0.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: FlutterFlowTheme.of(context).titleMedium.override(
-                          font: GoogleFonts.inter(),
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(0.0, 4.0, 0.0, 0.0),
-                    child: Text(
-                      subtitle,
-                      style: FlutterFlowTheme.of(context).bodySmall.override(
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 0.0, 0.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: FlutterFlowTheme.of(context).titleMedium.override(
                             font: GoogleFonts.inter(),
-                            color: FlutterFlowTheme.of(context).secondaryText,
+                            fontWeight: FontWeight.w600,
                           ),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(0.0, 4.0, 0.0, 0.0),
+                      child: Text(
+                        subtitle,
+                        style: FlutterFlowTheme.of(context).bodySmall.override(
+                              font: GoogleFonts.inter(),
+                              color: FlutterFlowTheme.of(context).secondaryText,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          if (isSwitch)
-            Switch.adaptive(
-              value: switchValue,
-              onChanged: (newValue) {},
-              activeColor: FlutterFlowTheme.of(context).primary,
-              activeTrackColor: FlutterFlowTheme.of(context).primary.withOpacity(0.5),
-              inactiveTrackColor: FlutterFlowTheme.of(context).alternate,
-              inactiveThumbColor: FlutterFlowTheme.of(context).secondaryText,
-            )
-          else
-            Icon(
-              Icons.chevron_right_rounded,
-              color: FlutterFlowTheme.of(context).secondaryText,
-              size: 24.0,
-            ),
-        ],
+            if (isSwitch)
+              Switch.adaptive(
+                value: switchValue,
+                onChanged: onToggle,
+                activeColor: FlutterFlowTheme.of(context).primary,
+                activeTrackColor: FlutterFlowTheme.of(context).primary.withOpacity(0.5),
+                inactiveTrackColor: FlutterFlowTheme.of(context).alternate,
+                inactiveThumbColor: FlutterFlowTheme.of(context).secondaryText,
+              )
+            else
+              Icon(
+                Icons.chevron_right_rounded,
+                color: FlutterFlowTheme.of(context).secondaryText,
+                size: 24.0,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -184,7 +207,11 @@ class _DSettingsWidgetState extends State<DSettingsWidget> {
                         title: 'Push Notifications',
                         subtitle: 'Receive alerts for new rides',
                         isSwitch: true,
-                        switchValue: true,
+                        switchValue: _pushNotifications,
+                        onToggle: (v) {
+                          setState(() => _pushNotifications = v);
+                          _savePref('setting_push_notifications', v);
+                        },
                       ),
                       Divider(height: 1.0, thickness: 1.0, color: FlutterFlowTheme.of(context).alternate),
                       _buildSettingItem(
@@ -194,7 +221,11 @@ class _DSettingsWidgetState extends State<DSettingsWidget> {
                         title: 'Email Updates',
                         subtitle: 'Weekly summaries and tips',
                         isSwitch: true,
-                        switchValue: false,
+                        switchValue: _emailUpdates,
+                        onToggle: (v) {
+                          setState(() => _emailUpdates = v);
+                          _savePref('setting_email_updates', v);
+                        },
                       ),
                     ],
                   ),
@@ -237,7 +268,11 @@ class _DSettingsWidgetState extends State<DSettingsWidget> {
                         title: 'Location Services',
                         subtitle: 'Required for ride requests',
                         isSwitch: true,
-                        switchValue: true,
+                        switchValue: _locationServices,
+                        onToggle: (v) {
+                          setState(() => _locationServices = v);
+                          _savePref('setting_location_services', v);
+                        },
                       ),
                       Divider(height: 1.0, thickness: 1.0, color: FlutterFlowTheme.of(context).alternate),
                       _buildSettingItem(
